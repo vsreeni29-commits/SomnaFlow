@@ -34,8 +34,9 @@ object Store {
         rev++
     }
 
-    @Synchronized fun arr(name: String): JSONArray = root.optJSONArray(name) ?: JSONArray().also { root.put(name, it) }
-    @Synchronized fun obj(name: String): JSONObject = root.optJSONObject(name) ?: JSONObject().also { root.put(name, it) }
+    @Synchronized fun arr(name: String): JSONArray { rev; return root.optJSONArray(name) ?: JSONArray().also { root.put(name, it) } }
+    /** Reading [rev] here subscribes every composable that reads the store, so screens refresh on save. */
+    @Synchronized fun obj(name: String): JSONObject { rev; return root.optJSONObject(name) ?: JSONObject().also { root.put(name, it) } }
     private val settings get() = obj("settings")
 
     fun int(key: String, def: Int): Int = settings.optInt(key, def)

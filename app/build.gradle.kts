@@ -27,9 +27,8 @@ android {
     buildTypes {
         debug { signingConfig = signingConfigs.getByName("sideload") }
         release {
-            isMinifyEnabled = true
-            isShrinkResources = true
-            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            // Shrinking is left off on purpose: the APK is a little larger but behaves exactly like the tested build.
+            isMinifyEnabled = false
             signingConfig = signingConfigs.getByName("sideload")
         }
     }
@@ -39,7 +38,7 @@ android {
     }
     kotlinOptions { jvmTarget = "17" }
     buildFeatures { compose = true }
-    testOptions { unitTests.isReturnDefaultValues = true }
+    testOptions { unitTests.isReturnDefaultValues = true; unitTests.isIncludeAndroidResources = true; unitTests.all { it.systemProperty("roborazzi.test.record", "true") } }
     lint { checkReleaseBuilds = false; abortOnError = false }
 }
 
@@ -56,4 +55,10 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.json:json:20240303")
+    testImplementation("org.robolectric:robolectric:4.14.1")
+    testImplementation("androidx.compose.ui:ui-test-junit4")
+    testImplementation("androidx.test.ext:junit:1.2.1")
+    testImplementation("io.github.takahirom.roborazzi:roborazzi:1.43.1")
+    testImplementation("io.github.takahirom.roborazzi:roborazzi-compose:1.43.1")
+    debugImplementation("androidx.compose.ui:ui-test-manifest")
 }

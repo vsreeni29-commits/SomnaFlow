@@ -164,7 +164,7 @@ object Nav {
     val phase = remember { mutableFloatStateOf(0f) }
     LaunchedEffect(playing) {
         if (!playing) { level.floatValue = 0f; return@LaunchedEffect }
-        while (true) { withFrameNanos { phase.floatValue = it / 1e9f }; level.floatValue = (SoundEngine.mixer.outLevel * 5f).coerceIn(0.15f, 1f) + phase.floatValue * 0f }
+        while (true) { withFrameNanos { phase.floatValue = it / 1e9f }; level.floatValue = (SoundEngine.mixer.outLevel * 5f).coerceIn(0.15f, 1f) }
     }
     return level
 }
@@ -187,7 +187,7 @@ object Nav {
     Box(modifier, Alignment.Center) {
         Canvas(Modifier.fillMaxSize().padding(6.dp)) {
             val st = Stroke(10.dp.toPx(), cap = StrokeCap.Round)
-            drawArc(C.raised, 135f, 270f, false, style = st)
+            drawArc(C.line, 135f, 270f, false, style = st)
             drawArc(Brush.sweepGradient(listOf(C.deep, C.primary, C.soft, C.deep)), 135f, 270f * value / 100f, false, style = st)
         }
         Column(horizontalAlignment = Alignment.CenterHorizontally) { T("$value", 30, weight = FontWeight.Bold); T(label, 11, C.muted, align = TextAlign.Center) }

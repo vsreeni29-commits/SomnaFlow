@@ -39,7 +39,7 @@ object Player {
 
     fun init(ctx: Context) {
         appCtx = ctx.applicationContext
-        Store.loadMix()?.let { mix = it; SoundEngine.mixer.config = it }
+        (Store.loadMix() ?: MixConfig(nature = setOf("rain"))).let { mix = it; SoundEngine.mixer.config = it }
     }
 
     fun updateMix(c: MixConfig, persist: Boolean = true) {
@@ -64,7 +64,8 @@ object Player {
         if (t != null && t.script.isNotEmpty()) Narrator.speak(app, t.script)
     }
 
-    fun toggle(ctx: Context) { if (playing) stop(ctx) else play(ctx, null) }
+    /** Resuming a narrated track restarts its narration from the beginning. */
+    fun toggle(ctx: Context) { if (playing) stop(ctx) else play(ctx, track?.takeIf { it.script.isNotEmpty() }) }
 
     fun stop(ctx: Context, fadeSec: Float = 2f) {
         Narrator.stop()

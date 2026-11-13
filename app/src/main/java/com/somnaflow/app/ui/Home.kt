@@ -76,7 +76,7 @@ fun readinessToday(): Int = SleepMath.readiness(tasksDoneToday().size, Content.T
         Section(when (severity) { 3 -> "Picked for restless nights"; 2 -> "Picked for your sleep profile"; else -> "Recommended tonight" }, "Library") { Nav.home(1) }
         Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Content.recommended(severity).forEach { t ->
-                Column(Modifier.width(150.dp).clip(RoundedCornerShape(18.dp)).clickable { Player.play(ctx, t); Nav.go("player") }) {
+                Column(Modifier.width(150.dp).clickable { Player.play(ctx, t); Nav.go("player") }.padding(bottom = 4.dp)) {
                     Artwork(t.hue, Modifier.fillMaxWidth().height(104.dp), 18.dp)
                     T(t.title, 14, weight = FontWeight.SemiBold, lines = 2, modifier = Modifier.padding(top = 6.dp))
                     T(t.kind.label, 12, C.muted)

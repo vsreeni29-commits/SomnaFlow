@@ -119,7 +119,7 @@ import java.time.format.DateTimeFormatter
         Spacer(Modifier.height(10.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             Stat("Deep sleep", SleepMath.fmtDur(n.deepMin), Modifier.weight(1f)); Stat("Awakenings", "${n.awakenings}", Modifier.weight(1f))
-            Stat("Woken by", when (n.wokeBy) { "smart" -> "Smart alarm"; "alarm" -> "Alarm"; else -> "You" }, Modifier.weight(1f))
+            Stat("Woken by", when (n.wokeBy) { "smart" -> "Smart"; "alarm" -> "Alarm"; else -> "You" }, Modifier.weight(1f))
         }
         Section("Breathing")
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {

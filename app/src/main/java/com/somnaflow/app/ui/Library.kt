@@ -116,7 +116,7 @@ import java.time.LocalTime
 
         Section("Sleep timer")
         val left = if (Player.timerEnd > 0) ((Player.timerEnd - now) / 60000).toInt() + 1 else 0
-        Pills(listOf(15, 30, 45, 60, 90, 0), { m -> if (m == 0) Player.timerEnd == 0L else false }, { if (it == 0) "Until stopped" else "$it min" }) { Player.setTimer(it); Store.set("timerMin", it) }
+        Pills(listOf(15, 30, 45, 60, 90, 0), { m -> if (m == 0) Player.timerEnd == 0L else Player.timerEnd > 0L && Store.timerMin == m }, { if (it == 0) "Until stopped" else "$it min" }) { Player.setTimer(it); Store.set("timerMin", it) }
         Note(if (!Player.playing) "Timer starts with playback." else if (left > 0) "Fades out gently in ${SleepMath.fmtDur(left)}." else "Playing until you stop it.")
         Spacer(Modifier.height(14.dp))
         BigButton("Open mixing console", secondary = true, icon = Icons.Rounded.Tune) { Nav.go("mixer") }
@@ -137,7 +137,7 @@ import java.time.LocalTime
                 Spacer(Modifier.fillMaxHeight((value * 0.93f).coerceIn(0.0001f, 1f)))
             }
         }
-        T(label, 10, if (enabled) C.text else C.muted, lines = 1, align = TextAlign.Center)
+        T(label, 9, if (enabled) C.text else C.muted, lines = 1, align = TextAlign.Center)
     }
 }
 
