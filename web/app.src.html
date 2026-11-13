@@ -1,0 +1,603 @@
+<title>SomnaFlow</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=Marcellus&display=swap">
+<style>
+/* Layout: one phone-width column of soft panels, a persistent mini-player and a three-tab bar pinned to the bottom. */
+/* Single dark look on purpose: a sleep app must not flash a light theme at night. */
+:root {
+  color-scheme: dark;
+  --bg: #0B0817; --surface: #16112C; --raised: #211A40; --line: #2E2556;
+  --primary: #9B82F3; --soft: #C9B8FF; --deep: #5B45B0; --ink: #160F30;
+  --text: #EDE6F7; --muted: #A198BD; --warm: #E8B98A; --good: #8FD3B0; --veil: rgba(8,4,0,.45);
+  --display: "Marcellus", "Iowan Old Style", Georgia, serif;
+  --body: "Figtree", -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+html, body { height: 100%; }
+body { background: var(--bg); color: var(--text); font: 15px/1.45 var(--body); -webkit-tap-highlight-color: transparent; }
+* { box-sizing: border-box; }
+#app { max-width: 560px; margin: 0 auto; padding-block: 14px 190px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: flex; flex-direction: column; gap: 12px; }
+h1 { font: 400 28px/1.15 var(--display); margin: 0; text-wrap: balance; letter-spacing: .01em; }
+h2 { font: 600 17px/1.3 var(--body); margin: 12px 0 0; }
+p { margin: 0; }
+.sub, .note { color: var(--muted); font-size: 13px; }
+.head { display: flex; gap: 12px; align-items: center; }
+.back { background: none; border: 0; color: var(--soft); font: 500 12px var(--body); padding: 6px 4px; display: flex; flex-direction: column; align-items: center; cursor: pointer; }
+.back b { font-size: 22px; line-height: 1; font-weight: 400; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 20px; padding: 16px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.panel.raised { background: var(--raised); }
+button { font-family: var(--body); }
+.btn { width: 100%; min-height: 52px; border: 0; border-radius: 16px; background: var(--primary); color: var(--ink); font: 600 15px var(--body); padding: 12px 16px; cursor: pointer; }
+.btn.sec { background: var(--raised); color: var(--soft); }
+.btn:disabled { background: var(--raised); color: var(--muted); }
+.btn:focus-visible, .pill:focus-visible, .tab:focus-visible, .row:focus-visible, input:focus-visible { outline: 2px solid var(--soft); outline-offset: 2px; }
+.pills { display: flex; flex-wrap: wrap; gap: 8px; }
+.pill { border: 1px solid transparent; border-radius: 999px; background: var(--raised); color: var(--muted); font: 400 13px var(--body); padding: 9px 14px; cursor: pointer; }
+.pill.on { border-color: var(--primary); background: rgba(155,130,243,.28); color: var(--text); font-weight: 600; }
+.scroll { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 4px; }
+.scroll > * { flex: none; }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 10px; }
+.stat { background: var(--raised); border-radius: 16px; padding: 12px; min-width: 0; }
+.stat b { display: block; font: 600 19px var(--body); font-variant-numeric: tabular-nums; }
+.stat span { color: var(--muted); font-size: 12px; }
+.row { display: flex; align-items: center; gap: 12px; width: 100%; background: none; border: 0; color: inherit; text-align: left; padding: 8px 2px; border-radius: 12px; cursor: pointer; font: inherit; }
+.row > div:not(.art) { flex: 1; min-width: 0; }
+.row em { font-style: normal; color: var(--soft); font-size: 13px; white-space: nowrap; }
+.art { border-radius: 14px; width: 58px; height: 58px; flex: none; position: relative; overflow: hidden; }
+.art::after { content: ""; position: absolute; width: 14%; aspect-ratio: 1; border-radius: 50%; background: #F1E4C8; opacity: .75; right: 22%; top: 20%; }
+.art::before { content: ""; position: absolute; width: 80%; aspect-ratio: 1; border-radius: 50%; background: rgba(255,255,255,.13); left: 8%; top: -10%; }
+.card { width: 150px; background: none; border: 0; color: inherit; text-align: left; padding: 0; cursor: pointer; font: inherit; }
+.card .art { width: 150px; height: 104px; border-radius: 18px; margin-bottom: 6px; }
+.bar { height: 10px; border-radius: 5px; background: var(--raised); position: relative; overflow: visible; flex: 1; }
+.bar i { display: block; height: 100%; border-radius: 5px; background: var(--primary); max-width: 100%; }
+.bar u { position: absolute; top: -3px; bottom: -3px; width: 3px; background: var(--warm); }
+.step { display: flex; align-items: center; gap: 8px; }
+.step > span:first-child { flex: 1; }
+.step b { min-width: 92px; text-align: center; font-variant-numeric: tabular-nums; }
+.round { width: 44px; height: 44px; border-radius: 50%; border: 0; background: var(--raised); color: var(--soft); font-size: 22px; cursor: pointer; }
+.panel.raised .round { background: var(--surface); }
+.tog { display: flex; align-items: center; gap: 12px; }
+.tog > div { flex: 1; }
+.sw { width: 52px; height: 30px; border-radius: 15px; border: 1px solid var(--line); background: var(--raised); position: relative; cursor: pointer; flex: none; }
+.sw::after { content: ""; position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%; background: var(--muted); transition: transform .15s; }
+.sw.on { background: var(--primary); } .sw.on::after { transform: translateX(22px); background: var(--text); }
+input[type=range] { width: 100%; accent-color: var(--primary); height: 32px; }
+textarea { width: 100%; min-height: 70px; background: var(--surface); color: var(--text); border: 1px solid var(--line); border-radius: 14px; padding: 12px; font: 15px var(--body); }
+canvas { display: block; width: 100%; }
+.fader { display: grid; grid-template-columns: 62px 1fr 38px; align-items: center; gap: 8px; font-size: 13px; }
+.fader span:last-child { color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
+.gauge { width: 112px; flex: none; text-align: center; position: relative; }
+.gauge b { position: absolute; inset: 34px 0 auto; font: 700 30px var(--body); }
+.gauge span { position: absolute; inset: 70px 0 auto; font-size: 11px; color: var(--muted); }
+.caption { font: 400 19px/1.45 var(--display); color: var(--soft); text-align: center; min-height: 56px; }
+.big { font: 700 44px var(--body); font-variant-numeric: tabular-nums; }
+.opt { display: flex; gap: 12px; align-items: center; width: 100%; text-align: left; background: var(--surface); border: 1px solid transparent; border-radius: 16px; padding: 16px; color: var(--text); font: 15px var(--body); cursor: pointer; }
+.opt.on { background: rgba(155,130,243,.28); border-color: var(--primary); }
+.dot { width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--muted); flex: none; }
+.opt.on .dot, .done .dot { border-color: var(--good); background: var(--good); }
+#dock { position: fixed; left: 0; right: 0; bottom: 0; background: var(--surface); border-top: 1px solid var(--line); padding-bottom: env(safe-area-inset-bottom, 0px); padding-left: max(8px, env(safe-area-inset-left, 0px)); padding-right: max(8px, env(safe-area-inset-right, 0px)); z-index: 5; }
+#dock > div { max-width: 560px; margin: 0 auto; }
+#mini { display: flex; align-items: center; gap: 10px; background: var(--raised); border-radius: 18px; padding: 8px; margin: 8px 2px 2px; cursor: pointer; }
+#mini .art { width: 44px; height: 44px; border-radius: 12px; }
+#mini > div:not(.art) { flex: 1; min-width: 0; }
+#mini strong { display: block; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#mini button { background: none; border: 0; color: var(--soft); font: 500 11px var(--body); width: 56px; cursor: pointer; }
+#mini button b { display: block; font-size: 22px; line-height: 1.1; }
+#tabs { display: flex; }
+.tab { flex: 1; background: none; border: 0; color: var(--muted); font: 400 12px var(--body); padding: 8px 0 6px; cursor: pointer; }
+.tab b { display: block; margin: 0 auto 2px; width: 60px; border-radius: 999px; font-size: 20px; line-height: 30px; font-weight: 400; }
+.tab.on { color: var(--text); font-weight: 600; } .tab.on b { background: rgba(155,130,243,.25); color: var(--soft); }
+#veil { position: fixed; inset: 0; background: var(--veil); pointer-events: none; z-index: 8; }
+#night { position: fixed; inset: 0; background: #000; z-index: 20; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; color: #3a3350; text-align: center; padding: 30px; }
+#night.alarm { background: var(--bg); color: var(--text); }
+#night .big { color: inherit; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div id="app"></div>
+<div id="veil" hidden></div>
+<div id="dock"><div>
+  <div id="mini" hidden data-a="go:player"><div class="art" id="miniArt"></div><div><strong id="miniTitle"></strong><canvas id="miniWave" height="16"></canvas></div><button data-a="toggle" id="miniBtn"></button></div>
+  <nav id="tabs">
+    <button class="tab" data-a="tab:home"><b>☾</b>Home</button>
+    <button class="tab" data-a="tab:library"><b>♫</b>Library</button>
+    <button class="tab" data-a="tab:profile"><b>◉</b>Profile</button>
+  </nav>
+</div></div>
+<div id="night" hidden></div>
+
+<script>
+"use strict";
+const D = /*CONTENT*/;
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+/* ---------------- Store: everything stays in this browser ---------------- */
+const DEF = { set: { bed: 1350, wake: 390, need: 8, lead: 45, alarm: true, win: 30, timer: 45, snore: "buzz", loop: true, dim: true },
+  moods: [], assess: [], nights: [], sessions: [], day: {}, tasks: {}, sleep: {}, mix: null, wdUntil: 0 };
+let S = JSON.parse(JSON.stringify(DEF));
+try { const raw = JSON.parse(localStorage.getItem("somnaflow") || "null"); if (raw) S = Object.assign(S, raw, { set: Object.assign(S.set, raw.set || {}) }); } catch (e) {}
+const save = () => { try { localStorage.setItem("somnaflow", JSON.stringify(S)); } catch (e) {} };
+const dstr = d => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+const today = () => dstr(new Date());
+const daysAgo = n => { const d = new Date(); d.setDate(d.getDate() - n); return d; };
+const nowMin = () => { const d = new Date(); return d.getHours() * 60 + d.getMinutes(); };
+const fmtClock = m => { m = ((m % 1440) + 1440) % 1440; const h = Math.floor(m / 60); return (h % 12 || 12) + ":" + String(m % 60).padStart(2, "0") + (h < 12 ? " AM" : " PM"); };
+const fmtDur = m => m >= 60 ? Math.floor(m / 60) + "h " + (m % 60) + "m" : m + "m";
+
+/* ---------------- Sleep maths (same formulas as the Android app) ---------------- */
+const asleepMin = n => [...n.epochs].filter(c => c !== "W").length;
+function sleepHours(date) { const t = S.nights.filter(n => dstr(new Date(n.end)) === date).reduce((a, n) => a + asleepMin(n), 0) / 60; return t > 0.5 ? t : (S.sleep[date] ?? null); }
+const last14 = () => Array.from({ length: 14 }, (_, i) => sleepHours(dstr(daysAgo(13 - i))));
+const debt = () => last14().reduce((d, h) => h == null ? d : Math.max(0, d + S.set.need - h), 0);
+function energyCurve(lastSleep, dbt) {
+  const { wake, bed, need } = S.set, s0 = clamp(0.12 + 0.5 * clamp((need - lastSleep) / need, 0, 1) + Math.min(0.25, dbt / 40), 0.05, 0.9);
+  const awake = ((bed - wake + 1440) % 1440) || 1440;
+  return Array.from({ length: 96 }, (_, i) => { const m = i * 15, since = (m - wake + 1440) % 1440, h = m / 60;
+    const c = 0.5 + 0.5 * (0.55 * Math.cos(2 * Math.PI * (h - 18) / 24) + 0.45 * Math.cos(4 * Math.PI * (h - 9.5) / 24));
+    if (since > awake) return 3;
+    const s = 1 - (1 - s0) * Math.exp(-(since / 60) / 18.2), inertia = since < 45 ? 0.25 * (1 - since / 45) : 0;
+    return clamp(120 * (0.62 * (1 - s) + 0.5 * c - inertia), 3, 100); });
+}
+function stage(act) { let out = "", still = 0; const n = act.length;
+  for (let i = 0; i < n; i++) { let w = 0; for (let k = -4; k <= 2; k++) { const j = i + k; if (j >= 0 && j < n) w += act[j] * (k === 0 ? 2 : 1 / (1 + Math.abs(k))); }
+    const aw = w > 9; still = (act[i] === 0 && !aw) ? still + 1 : 0; out += aw ? "W" : still >= 12 ? "D" : "L"; } return out; }
+function sleepOnset(e) { let run = 0; for (let i = 0; i < e.length; i++) { run = e[i] !== "W" ? run + 1 : 0; if (run >= 10) return i - 9; } return e.length; }
+const checkedIn = () => S.moods.length && dstr(new Date(S.moods[S.moods.length - 1].t)) === today();
+function tasksDone() { const s = new Set(S.tasks[today()] || []); if ((S.day[today()] || 0) >= 80) s.add("daylight"); if (checkedIn()) s.add("checkin"); return s; }
+const readiness = () => Math.round(clamp(100 * (0.55 * tasksDone().size / D.tasks.length + 0.18 * Math.min(1, (S.day[today()] || 0) / 80) + 0.10 * (checkedIn() ? 1 : 0) + 0.17 * clamp(1 - debt() / 10, 0, 1)), 0, 100));
+function severity() { const a = S.assess.filter(x => x.type === "psqi").pop(); return !a ? 0 : a.score <= 5 ? 1 : a.score <= 10 ? 2 : 3; }
+function streak() { const days = new Set(); S.moods.forEach(m => days.add(dstr(new Date(m.t)))); S.nights.forEach(n => days.add(dstr(new Date(n.end)))); S.sessions.forEach(t => days.add(dstr(new Date(t))));
+  Object.keys(S.tasks).forEach(k => S.tasks[k].length && days.add(k)); let i = days.has(today()) ? 0 : 1, n = 0; while (days.has(dstr(daysAgo(i)))) { n++; i++; } return n; }
+const dayOk = () => ((nowMin() - S.set.wake + 1440) % 1440) <= ((S.set.bed - 180 - S.set.wake + 2880) % 1440);
+
+/* ---------------- Questionnaire scoring ---------------- */
+const bucket = (v, lim) => { for (let i = 0; i < lim.length; i++) if (v <= lim[i]) return i; return lim.length; };
+function psqiParts(a) { const hours = a[3] / 10, inBed = ((a[2] - a[0] + 1440) % 1440) / 60, eff = inBed <= 0 ? 100 : hours / inBed * 100;
+  return [a[14], bucket(bucket(a[1], [15, 30, 60]) + a[4], [0, 2, 4]), hours > 7 ? 0 : hours >= 6 ? 1 : hours >= 5 ? 2 : 3, eff >= 85 ? 0 : eff >= 75 ? 1 : eff >= 65 ? 2 : 3,
+    bucket(a.slice(5, 14).reduce((x, y) => x + y, 0), [0, 9, 18]), a[15], bucket(a[16] + a[17], [0, 2, 4])]; }
+const PSQI_PARTS = ["Subjective quality", "Sleep latency", "Sleep duration", "Sleep efficiency", "Disturbances", "Sleep medication", "Daytime dysfunction"];
+const score = (id, a) => id === "psqi" ? psqiParts(a).reduce((x, y) => x + y, 0) : a.reduce((x, y) => x + y, 0);
+const band = (id, s) => id === "psqi" ? (s <= 5 ? "Good sleep quality" : s <= 10 ? "Moderate sleep disturbance" : "Severe sleep disturbance")
+  : id === "phq9" ? (s <= 4 ? "Minimal symptoms" : s <= 9 ? "Mild symptoms" : s <= 14 ? "Moderate symptoms" : s <= 19 ? "Moderately severe symptoms" : "Severe symptoms")
+  : (s <= 4 ? "Minimal anxiety" : s <= 9 ? "Mild anxiety" : s <= 14 ? "Moderate anxiety" : "Severe anxiety");
+
+/* ---------------- Sound synthesis: every layer is generated here, nothing is downloaded ---------------- */
+const rnd = (a, b) => a + (b - a) * Math.random(), bi = () => Math.random() * 2 - 1;
+function pinkGen() { let b0 = 0, b1 = 0, b2 = 0; return () => { const w = bi(); b0 = 0.99765 * b0 + w * 0.099046; b1 = 0.963 * b1 + w * 0.2965164; b2 = 0.57 * b2 + w * 1.0526913; return (b0 + b1 + b2 + w * 0.1848) * 0.22; }; }
+function brownGen() { let b = 0; return () => { b = (b + 0.02 * bi()) / 1.02; return b * 3.5; }; }
+function biquad(type, f, q, sr) { let b0, b1, b2, a1, a2, z1 = 0, z2 = 0;
+  const set = (f, q) => { const w = 2 * Math.PI * f / sr, c = Math.cos(w), al = Math.sin(w) / (2 * q), a0 = 1 + al;
+    if (type === "lp") { b0 = (1 - c) / 2 / a0; b1 = (1 - c) / a0; b2 = b0; } else if (type === "hp") { b0 = (1 + c) / 2 / a0; b1 = -(1 + c) / a0; b2 = b0; } else { b0 = al / a0; b1 = 0; b2 = -al / a0; }
+    a1 = -2 * c / a0; a2 = (1 - al) / a0; };
+  set(f, q); const fn = x => { const y = b0 * x + z1; z1 = b1 * x - a1 * y + z2; z2 = b2 * x - a2 * y; return y; }; fn.set = set; return fn; }
+function wander(lo, hi, minS, maxS, sr) { let v = rnd(lo, hi), step = 0, left = 0; return () => { if (left <= 0) { left = Math.floor(rnd(minS, maxS) * sr); step = (rnd(lo, hi) - v) / left; } left--; v += step; return v; }; }
+const midi = m => 440 * Math.pow(2, (m - 69) / 12), TAU = Math.PI * 2;
+
+const GEN = {
+  white: (L, R) => { for (let i = 0; i < L.length; i++) { L[i] = bi() * 0.16; R[i] = bi() * 0.16; } },
+  pink: (L, R) => { const a = pinkGen(), b = pinkGen(); for (let i = 0; i < L.length; i++) { L[i] = a() * 0.28; R[i] = b() * 0.28; } },
+  brown: (L, R) => { const a = brownGen(), b = brownGen(); for (let i = 0; i < L.length; i++) { L[i] = a() * 0.42; R[i] = b() * 0.42; } },
+  rain(L, R, sr) { const hl = biquad("hp", 450, .7, sr), hr = biquad("hp", 450, .7, sr), ll = biquad("lp", 7500, .7, sr), lr = biquad("lp", 7500, .7, sr), inten = wander(.7, 1, 4, 10, sr);
+    const V = 10, ph = new Float32Array(V), inc = new Float32Array(V), amp = new Float32Array(V), dec = new Float32Array(V), pan = new Float32Array(V); let nx = 0;
+    for (let i = 0; i < L.length; i++) { if (Math.random() < 26 / sr) { const k = nx; nx = (nx + 1) % V; ph[k] = 0; inc[k] = TAU * rnd(1800, 6500) / sr; amp[k] = rnd(.03, .22); dec[k] = Math.exp(-1 / (sr * rnd(.004, .02))); pan[k] = Math.random(); }
+      let dl = 0, dr = 0; for (let k = 0; k < V; k++) if (amp[k] > 1e-4) { const s = Math.sin(ph[k]) * amp[k]; ph[k] += inc[k]; amp[k] *= dec[k]; dl += s * (1 - pan[k]); dr += s * pan[k]; }
+      const g = inten() * .34; L[i] = ll(hl(bi())) * g + dl; R[i] = lr(hr(bi())) * g + dr; } },
+  ocean(L, R, sr) { const bl = brownGen(), br = brownGen(), pl = pinkGen(), pr = pinkGen(), fl = biquad("hp", 2500, .7, sr), fr = biquad("hp", 2500, .7, sr);
+    let p = 0, period = 9, peak = .9, yl = 0, yr = 0; const sh = x => x < .38 ? (x / .38) ** 2 : Math.exp(-(x - .38) * 5.2);
+    for (let i = 0; i < L.length; i++) { p += 1 / (period * sr); if (p >= 1) { p -= 1; period = rnd(7, 13); peak = rnd(.55, 1); }
+      const eL = sh(p) * peak, eR = sh((p + .04) % 1) * peak; yl += (.015 + .3 * eL) * ((bl() + pl() * 1.6) - yl); yr += (.015 + .3 * eR) * ((br() + pr() * 1.6) - yr);
+      L[i] = yl * (.22 + eL) * .36 + fl(bi()) * eL * eL * .1; R[i] = yr * (.22 + eR) * .36 + fr(bi()) * eR * eR * .1; } },
+  waterfall(L, R, sr) { const pl = pinkGen(), pr = pinkGen(), bl = brownGen(), br = brownGen(), hl = biquad("hp", 1500, .7, sr), hr = biquad("hp", 1500, .7, sr), mod = wander(.85, 1, 1.5, 4, sr);
+    for (let i = 0; i < L.length; i++) { const m = mod() * .65; L[i] = (pl() * .42 + bl() * .3 + hl(bi()) * .085) * m; R[i] = (pr() * .42 + br() * .3 + hr(bi()) * .085) * m; } },
+  wind(L, R, sr, level = 1) { const pl = pinkGen(), pr = pinkGen(), fl = biquad("bp", 500, 1.1, sr), fr = biquad("bp", 500, 1.1, sr), cen = wander(220, 900, 2.5, 7, sr), gust = wander(.25, 1, 2, 6, sr);
+    for (let i = 0; i < L.length; i++) { const f = cen(), g = gust(); if (i % 64 === 0) { fl.set(f, 1.1); fr.set(f * 1.07, 1.1); } L[i] += fl(pl()) * g * 1.3 * level; R[i] += fr(pr()) * g * 1.3 * level; } },
+  forest(L, R, sr) { GEN.wind(L, R, sr, .9); const ll = biquad("hp", 4000, .7, sr), lr = biquad("hp", 4000, .7, sr), rus = wander(0, 1, 1.5, 5, sr);
+    const B = [0, 1, 2].map(() => ({ wait: Math.floor(rnd(.5, 5) * sr), left: 0, t: 0, dur: 1, gap: 1, f0: 3000, sw: 1, amp: .05, pan: .5, ph: 0 }));
+    for (let i = 0; i < L.length; i++) { const ru = rus(), lg = ru * ru * .035; let sl = ll(bi()) * lg, s2 = lr(bi()) * lg;
+      for (const b of B) { if (b.wait > 0) { if (--b.wait === 0) { if (b.left === 0) { b.left = 2 + Math.floor(Math.random() * 5); b.f0 = rnd(2200, 5200); b.sw = rnd(.7, 1.4); b.amp = rnd(.03, .11); b.pan = Math.random(); b.dur = Math.floor(rnd(.05, .17) * sr); b.gap = Math.floor(rnd(.04, .14) * sr); } b.t = 0; } continue; }
+        const x = b.t / b.dur, e = Math.sin(Math.PI * x); b.ph += TAU * b.f0 * (1 + (b.sw - 1) * x) / sr; const s = Math.sin(b.ph) * e * e * b.amp; sl += s * (1 - b.pan); s2 += s * b.pan;
+        if (++b.t >= b.dur) { b.left--; b.wait = b.left > 0 ? b.gap : Math.floor(rnd(2, 9) * sr); } }
+      L[i] += sl; R[i] += s2; } },
+  river(L, R, sr) { const base = [350, 620, 980, 1550, 2450], fl = base.map(f => biquad("bp", f, 3, sr)), fr = base.map(f => biquad("bp", f * 1.05, 3, sr));
+    const tune = base.map(() => wander(.75, 1.3, .3, 1.2, sr)), bub = base.map(() => wander(.15, 1, .08, .35, sr)), pl = pinkGen(), pr = pinkGen();
+    for (let i = 0; i < L.length; i++) { const xl = bi(), xr = bi(); let sl = pl() * .16, s2 = pr() * .16;
+      for (let b = 0; b < 5; b++) { const tv = tune[b](), g = bub[b](); if (i % 128 === 0) { fl[b].set(base[b] * tv, 3); fr[b].set(base[b] * tv * 1.05, 3); } const pn = b % 2 ? .3 : .7; sl += fl[b](xl) * g * (1 - pn) * .9; s2 += fr[b](xr) * g * pn * .9; }
+      L[i] = sl; R[i] = s2; } },
+  campfire(L, R, sr) { const bl = brownGen(), br = brownGen(), lp = biquad("lp", 260, .7, sr), lp2 = biquad("lp", 260, .7, sr), hp = biquad("hp", 1200, .7, sr), hp2 = biquad("hp", 1200, .7, sr), pk = pinkGen(), fli = wander(.5, 1, .2, 1.2, sr);
+    const V = 6, amp = new Float32Array(V), dec = new Float32Array(V), pan = new Float32Array(V); let nx = 0;
+    for (let i = 0; i < L.length; i++) { if (Math.random() < 7 / sr) { const k = nx; nx = (nx + 1) % V; amp[k] = Math.random() ** 3 * .9 + .04; dec[k] = Math.exp(-1 / (sr * rnd(.001, .009))); pan[k] = Math.random(); }
+      let cl = 0, cr = 0; for (let k = 0; k < V; k++) if (amp[k] > 1e-4) { const s = bi() * amp[k]; amp[k] *= dec[k]; cl += s * (1 - pan[k]); cr += s * pan[k]; }
+      const f = fli(), hiss = pk() * .1 * f; L[i] = lp(bl()) * .8 * f + hp(cl) * .4 + hiss; R[i] = lp2(br()) * .8 * f + hp2(cr) * .4 + hiss; } },
+  chimes(L, R, sr) { const notes = [1046.5, 1174.7, 1318.5, 1568, 1760, 2093], ratio = [1, 2.76, 5.4], dec = [2.6, 1.2, .45].map(t => Math.exp(-1 / (sr * t)));
+    const V = 6, ph = new Float32Array(18), inc = new Float32Array(18), amp = new Float32Array(18), pan = new Float32Array(V); let nx = 0, gust = sr, strikes = 0, sw = 0;
+    for (let i = 0; i < L.length; i++) { if (strikes > 0) { if (--sw <= 0) { const v = nx; nx = (nx + 1) % V; const f = notes[Math.floor(Math.random() * 6)], a = rnd(.08, .22); pan[v] = rnd(.2, .8);
+          for (let k = 0; k < 3; k++) { ph[v * 3 + k] = 0; inc[v * 3 + k] = TAU * f * ratio[k] / sr; amp[v * 3 + k] = a / (1 + k * 1.5); } strikes--; sw = Math.floor(rnd(.08, .6) * sr); } }
+      else if (--gust <= 0) { strikes = 1 + Math.floor(Math.random() * 5); sw = 0; gust = Math.floor(rnd(4, 12) * sr); }
+      let l = 0, r = 0; for (let v = 0; v < V; v++) { let s = 0; for (let k = 0; k < 3; k++) { const j = v * 3 + k; if (amp[j] > 1e-4) { s += Math.sin(ph[j]) * amp[j]; ph[j] += inc[j]; amp[j] *= dec[k]; } } l += s * (1 - pan[v]); r += s * pan[v]; }
+      L[i] = l; R[i] = r; } },
+  piano(L, R, sr) { const scale = [48, 50, 52, 55, 57, 60, 62, 64, 67, 69, 72], V = 8, P = 5, ph = new Float32Array(40), inc = new Float32Array(40), amp = new Float32Array(40), dec = new Float32Array(40), age = new Int32Array(V), pan = new Float32Array(V);
+    let nx = 0, wait = sr / 2, idx = 5;
+    const note = (i, vel) => { const v = nx; nx = (nx + 1) % V; const f = midi(scale[i]); age[v] = 0; pan[v] = .25 + .5 * i / scale.length; const base = rnd(2.4, 3.8);
+      for (let k = 0; k < P; k++) { const j = v * P + k, h = k + 1; ph[j] = 0; inc[j] = TAU * f * h * (1 + .0004 * h * h) / sr; amp[j] = vel / Math.pow(h, 1.5); dec[j] = Math.exp(-1 / (sr * base / h)); } };
+    for (let i = 0; i < L.length; i++) { if (--wait <= 0) { idx = clamp(idx + Math.floor(Math.random() * 5) - 2, 0, 10); const vel = rnd(.16, .3); note(idx, vel); if (Math.random() < .3) note(clamp(idx + (Math.random() < .5 ? 2 : -3), 0, 10), vel * .6); wait = Math.floor(rnd(1.8, 4.6) * sr); }
+      let l = 0, r = 0; for (let v = 0; v < V; v++) { if (amp[v * P] < 1e-4) continue; let s = 0; for (let k = 0; k < P; k++) { const j = v * P + k; s += Math.sin(ph[j]) * amp[j]; ph[j] += inc[j]; amp[j] *= dec[j]; }
+        if (age[v] < 220) { s *= age[v] / 220; age[v]++; } l += s * (1 - pan[v]); r += s * pan[v]; }
+      L[i] = l; R[i] = r; } },
+  pad(L, R, sr) { const chords = [[48, 55, 64, 71, 74], [45, 52, 60, 67, 72], [41, 53, 60, 64, 69], [43, 55, 60, 62, 69]], pa = new Float64Array(20), pb = new Float64Array(20), lfo = Float32Array.from({ length: 20 }, Math.random), li = Float32Array.from({ length: 20 }, () => rnd(.05, .14) / sr), gain = new Float32Array(4), fr = chords.flat().map(midi);
+    let ch = Math.floor(Math.random() * 4), left = 0; gain[ch] = 1;   // start on a full chord so the loop seam has no silence
+    for (let i = 0; i < L.length; i++) { if (--left <= 0) { ch = (ch + 1 + Math.floor(Math.random() * 2)) % 4; left = Math.floor(rnd(9, 13) * sr); }
+      let l = 0, r = 0; for (let c = 0; c < 4; c++) { gain[c] += ((c === ch ? 1 : 0) - gain[c]) / (3.5 * sr); const g = gain[c]; if (g < 1e-4) continue;
+        for (let k = 0; k < 5; k++) { const j = c * 5 + k, f = fr[j]; pa[j] += TAU * f * .9985 / sr; pb[j] += TAU * f * 1.0015 / sr; lfo[j] += li[j]; const a = g * (.6 + .4 * Math.sin(TAU * lfo[j])) * .085; l += Math.sin(pa[j]) * a; r += Math.sin(pb[j]) * a; } }
+      L[i] = l; R[i] = r; } }
+};
+const LEN = { white: 7, pink: 9, brown: 11, rain: 23, ocean: 41, waterfall: 17, wind: 31, forest: 37, river: 19, campfire: 21, chimes: 43, piano: 31, pad: 27 };
+const NATURE = ["rain", "ocean", "waterfall", "forest", "river", "campfire", "chimes", "wind"], CS = NATURE.slice(0, 5), WET = { chimes: .5, piano: .4, pad: .35 };
+const LABEL = { rain: "Rain", ocean: "Ocean waves", waterfall: "Waterfall", forest: "Forest", river: "River", campfire: "Campfire", chimes: "Wind chimes", wind: "Wind", piano: "Piano", pad: "Ambient pads" };
+const FADERS = ["Master", "Beats", "Nature", "Melody", "White", "Pink", "Brown", "Bass", "Mid", "Treble"];
+
+/** Renders one layer into a seamless loop: the tail is crossfaded into the head. */
+function renderLoop(ctx, id) { const sr = ctx.sampleRate, xf = Math.floor(sr * 2), n = Math.floor(LEN[id] * sr), L = new Float32Array(n + xf), R = new Float32Array(n + xf);
+  GEN[id](L, R, sr);
+  for (let i = 0; i < xf; i++) { const a = i / xf; L[i] = L[i] * a + L[n + i] * (1 - a); R[i] = R[i] * a + R[n + i] * (1 - a); }
+  const buf = ctx.createBuffer(2, n, sr); buf.copyToChannel(L.subarray(0, n), 0); buf.copyToChannel(R.subarray(0, n), 1); return buf; }
+
+/* ---------------- Audio engine ---------------- */
+const A = { ctx: null, playing: false, track: null, layers: {}, rotation: [], rotateAt: 0, sweepT0: 0, bedRms: 0, ratio: NaN, beatHz: 0, timerEnd: 0, timerId: 0, level: 0, preparing: false,
+  mix: S.mix || { f: [.8, .5, .75, .6, 0, 0, 0, .5, .5, .5], n: ["rain"], m: "", b: 0, cs: true, r: false } };
+function ensureCtx() {
+  if (A.ctx) return; const ctx = A.ctx = new (window.AudioContext || window.webkitAudioContext)();
+  try { navigator.audioSession.type = "playback"; } catch (e) {}   // iPhone: play even with the ringer switch on silent
+  A.master = ctx.createGain(); A.master.gain.value = 0; A.master.connect(ctx.destination);
+  A.anOut = ctx.createAnalyser(); A.anOut.fftSize = 1024; A.master.connect(A.anOut);
+  A.bed = ctx.createGain(); A.duck = ctx.createGain();
+  A.eq = [["lowshelf", 150], ["peaking", 1000], ["highshelf", 5000]].map(([t, f]) => { const b = ctx.createBiquadFilter(); b.type = t; b.frequency.value = f; b.Q.value = .8; return b; });
+  A.bed.connect(A.eq[0]); A.eq[0].connect(A.eq[1]); A.eq[1].connect(A.eq[2]); A.eq[2].connect(A.duck); A.duck.connect(A.master);
+  A.anBed = ctx.createAnalyser(); A.anBed.fftSize = 2048; A.duck.connect(A.anBed);
+  // Small generated reverb for piano, pads and chimes.
+  const ir = ctx.createBuffer(2, ctx.sampleRate * 2.2, ctx.sampleRate); for (let c = 0; c < 2; c++) { const d = ir.getChannelData(c); for (let i = 0; i < d.length; i++) d[i] = bi() * Math.pow(1 - i / d.length, 3) * .5; }
+  A.wet = ctx.createConvolver(); A.wet.buffer = ir; A.wet.connect(A.bed);
+  // Binaural beat: 250 Hz in the left ear, 250 Hz + beat in the right. Kept outside the tone controls so the carriers stay pure.
+  A.oscL = ctx.createOscillator(); A.oscR = ctx.createOscillator(); A.oscL.frequency.value = 250; A.oscR.frequency.value = 256;
+  A.beat = ctx.createGain(); A.beat.gain.value = 0; const beatR = ctx.createGain(); beatR.gain.value = 0; A.beatR = beatR;
+  const merge = ctx.createChannelMerger(2); A.oscL.connect(A.beat); A.beat.connect(merge, 0, 0); A.oscR.connect(beatR); beatR.connect(merge, 0, 1); merge.connect(A.master);
+  A.oscL.start(); A.oscR.start();
+  setInterval(tick, 250);
+}
+function wantedLayers() { const m = A.mix, w = {}, nat = m.r ? A.rotation : m.n, sq = i => m.f[i] * m.f[i];
+  nat.forEach(id => w[id] = sq(2) / Math.sqrt(Math.max(1, nat.length)) * 1.2); if (m.m) w[m.m] = sq(3);
+  if (m.f[4] > 0) w.white = sq(4); if (m.f[5] > 0) w.pink = sq(5); if (m.f[6] > 0) w.brown = sq(6); return w; }
+function applyMix() {
+  if (!A.ctx) return; const ctx = A.ctx, t = ctx.currentTime, m = A.mix, w = wantedLayers();
+  if (m.r && (!A.rotation.length || Date.now() > A.rotateAt)) { const pool = CS.filter(x => !A.rotation.includes(x)), a = pool[Math.floor(Math.random() * pool.length)];
+    A.rotation = Math.random() < .35 ? [a, pool.filter(x => x !== a)[Math.floor(Math.random() * (pool.length - 1))]] : [a]; A.rotateAt = Date.now() + rnd(240, 420) * 1000; return applyMix(); }
+  for (const id in A.layers) A.layers[id].g.gain.setTargetAtTime(w[id] || 0, t, .5);
+  const missing = Object.keys(w).filter(id => !A.layers[id]);
+  if (missing.length && !A.preparing) { A.preparing = true; paintMini();
+    setTimeout(() => { const id = missing[0], src = ctx.createBufferSource(); src.buffer = renderLoop(ctx, id); src.loop = true; const g = ctx.createGain(); g.gain.value = 0; src.connect(g); g.connect(A.bed);
+      if (WET[id]) { const s = ctx.createGain(); s.gain.value = WET[id]; g.connect(s); s.connect(A.wet); }
+      src.start(); A.layers[id] = { src, g }; A.preparing = false; applyMix(); paintMini(); }, 30); }
+  A.eq.forEach((b, i) => b.gain.setTargetAtTime((m.f[7 + i] - .5) * 24, t, .1));
+  A.master.gain.setTargetAtTime(A.playing ? m.f[0] * m.f[0] * 1.6 : 0, t, A.playing ? .8 : (A.fadeTau || .5));
+}
+/** Runs four times a second: measures the sound bed, servo-locks the beat 30 dB under it, moves the delta sweep. */
+function tick() {
+  if (!A.ctx) return; const t = A.ctx.currentTime, m = A.mix, buf = new Float32Array(2048);
+  A.anBed.getFloatTimeDomainData(buf); let ms = 0; for (let i = 0; i < buf.length; i++) ms += buf[i] * buf[i]; A.bedRms += (Math.sqrt(ms / buf.length) - A.bedRms) * .15;
+  const out = new Float32Array(1024); A.anOut.getFloatTimeDomainData(out); let o = 0; for (let i = 0; i < out.length; i++) o += out[i] * out[i]; A.level = Math.sqrt(o / out.length);
+  let hz = 0, amp = 0;
+  if (m.b) { if (m.b === 2) { const x = ((Date.now() - A.sweepT0) / 1000 % 600) / 600; hz = 4 - 3.5 * (x < .5 ? x * 2 : 2 - x * 2); } else hz = 6;
+    const locked = m.cs && A.bedRms > 1e-4; amp = locked ? A.bedRms * 0.0316 * 1.414 : m.f[1] * m.f[1] * .25;
+    A.ratio = A.bedRms > 1e-4 ? 20 * Math.log10(amp / 1.414 / A.bedRms) : NaN; A.oscR.frequency.setTargetAtTime(250 + hz, t, .2); } else A.ratio = NaN;
+  A.beatHz = hz; A.beat.gain.setTargetAtTime(amp, t, .6); A.beatR.gain.setTargetAtTime(amp, t, .6);
+  if (m.r && A.playing && Date.now() > A.rotateAt) applyMix();
+  const live = $("#live"); if (live) live.innerHTML = liveHtml();
+}
+function setMix(m, persist = true) { if (m.b !== A.mix.b) A.sweepT0 = Date.now(); A.mix = m; if (persist) { S.mix = m; save(); } applyMix(); }
+async function play(track) {
+  ensureCtx(); A.playing = true; if (track) A.track = track;   // state first, so the screen that opens next already shows it
+  try { await A.ctx.resume(); } catch (e) {}
+  stopNarration();
+  if (track) { const m = JSON.parse(JSON.stringify(track.mix)); m.f[0] = A.mix.f[0]; setMix(m, false); S.sessions.push(Date.now()); S.sessions = S.sessions.slice(-400); save(); }
+  A.fadeTau = .5; applyMix(); setTimer(S.set.timer); wakeLock(true); paintMini(); if (route === "player") render();
+  if (track && track.script.length) narrate(track.script);
+}
+function stop(fade = .5) { stopNarration(); A.playing = false; A.fadeTau = fade; A.timerEnd = 0; clearTimeout(A.timerId); A.byLoop = false; applyMix(); if (!T.on) wakeLock(false); paintMini(); if (route === "player") render(); }
+const toggle = () => A.playing ? stop() : play(A.track && A.track.script.length ? A.track : null);
+function setTimer(min) { clearTimeout(A.timerId); if (!min || !A.playing) { A.timerEnd = 0; return; } A.timerEnd = Date.now() + min * 60000; A.timerId = setTimeout(() => stop(10), min * 60000); }
+
+/* ---------------- Narration: the phone's own voice, slowed and lowered ---------------- */
+let narr = { token: 0, on: false, caption: "" };
+function stopNarration() { narr.token++; narr.on = false; narr.caption = ""; try { speechSynthesis.cancel(); } catch (e) {} if (A.ctx) A.duck.gain.setTargetAtTime(1, A.ctx.currentTime, .5); }
+function speak(text) { const est = 900 + text.split(/\s+/).length * 430, t0 = Date.now();
+  // If the phone has no voice (or speech is blocked), the caption still stays up long enough to read at a slow pace.
+  return new Promise(res => { const done = () => { clearTimeout(fallback); setTimeout(res, Math.max(0, est * .6 - (Date.now() - t0))); }, fallback = setTimeout(res, est + 1500);
+  try { const u = new SpeechSynthesisUtterance(text); u.rate = .8; u.pitch = .85; u.lang = "en-US"; u.onend = u.onerror = done; speechSynthesis.speak(u); } catch (e) {} }); }
+async function narrate(script) { const my = ++narr.token; narr.on = true; if (A.ctx) A.duck.gain.setTargetAtTime(.8, A.ctx.currentTime, .5);
+  const cap = c => { narr.caption = c; const el = $("#caption"); if (el) el.textContent = c || "…"; };
+  await sleep(2500);
+  for (const para of script) { for (const part of para.split(/(\[\d+\])/)) { if (my !== narr.token) return; const p = /^\[(\d+)\]$/.exec(part);
+      if (p) { cap(""); await sleep(p[1] * 1000); continue; }
+      for (const s of part.split(/(?<=[.?!])\s+/)) { if (!s.trim()) continue; if (my !== narr.token) return; cap(s.trim()); await speak(s.trim()); await sleep(900); } }
+    await sleep(2200); }
+  if (my === narr.token) { narr.on = false; cap(""); A.duck.gain.setTargetAtTime(1, A.ctx.currentTime, .5); if (route === "player") render(); } }
+
+let lock = null;
+async function wakeLock(on) { try { if (on && !lock) { lock = await navigator.wakeLock.request("screen"); lock.addEventListener("release", () => lock = null); } else if (!on && lock) { await lock.release(); lock = null; } } catch (e) {} }
+document.addEventListener("visibilitychange", () => { if (!document.hidden && (A.playing || T.on)) wakeLock(true); });
+
+/* ---------------- Tonight: movement, snore monitor, smart alarm (runs while this page stays open) ---------------- */
+const T = { on: false, start: 0, act: [], moves: 0, mic: false, motion: false, conf: 0, level: -90, breaths: 0, snoreSec: 0, pauses: 0, nudges: 0, episodes: 0, alarmAt: 0, ringing: false, wokeBy: "manual" };
+function nextAt(min) { const d = new Date(); d.setHours(Math.floor(min / 60), min % 60, 0, 0); if (d.getTime() < Date.now() + 60000) d.setDate(d.getDate() + 1); return d.getTime(); }
+async function startTracking() {
+  ensureCtx(); try { await A.ctx.resume(); } catch (e) {}
+  Object.assign(T, { on: true, start: Date.now(), act: [], moves: 0, conf: 0, snoreSec: 0, pauses: 0, nudges: 0, episodes: 0, ringing: false, wokeBy: "manual", mic: false, motion: false, alarmAt: S.set.alarm ? nextAt(S.set.wake) : 0 });
+  try { if (typeof DeviceMotionEvent !== "undefined") { if (DeviceMotionEvent.requestPermission) { if (await DeviceMotionEvent.requestPermission() === "granted") T.motion = true; } else T.motion = "ondevicemotion" in window; } } catch (e) {}
+  if (T.motion) window.addEventListener("devicemotion", onMotion);
+  try { T.stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
+    const src = A.ctx.createMediaStreamSource(T.stream); T.an = A.ctx.createAnalyser(); T.an.fftSize = 1024; T.an.smoothingTimeConstant = 0; src.connect(T.an); T.mic = true; snoreReset(); } catch (e) {}
+  T.micInt = setInterval(micFrame, 64); T.minInt = setInterval(minuteTick, 60000); wakeLock(true); render();
+}
+let lastMag = null;
+function onMotion(e) { const a = e.accelerationIncludingGravity; if (!a) return; const m = Math.hypot(a.x || 0, a.y || 0, a.z || 0); if (lastMag != null && Math.abs(m - lastMag) > 0.12) T.moves++; lastMag = lastMag == null ? m : lastMag + (m - lastMag) * .5; }
+let sn;
+function snoreReset() { sn = { t: 0, floor: null, inEv: false, evStart: 0, frames: 0, low: 0, quiet: 0, onsets: [], ratios: [], breaths: [], lastEnd: -1, lastSnoring: -1000, alerted: false, snoring: false, lastNudge: 0, lvl: 1 }; }
+/** Same detector as the Android app: 0.3–3 s low-frequency bursts recurring at a breathing cadence; acts only above 90% confidence. */
+function micFrame() {
+  if (!T.on || !T.mic || A.playing) { T.conf = 0; return; }
+  const an = T.an, bins = new Float32Array(an.frequencyBinCount); an.getFloatFrequencyData(bins); const hz = A.ctx.sampleRate / an.fftSize;
+  let total = 1e-12, low = 0; for (let k = Math.floor(60 / hz); k <= Math.floor(4000 / hz); k++) { const p = Math.pow(10, bins[k] / 10); total += p; if (k * hz <= 500) low += p; }
+  const db = 10 * Math.log10(total), s = sn; T.level = db; if (s.floor == null) s.floor = db; s.floor = db < s.floor ? s.floor + (db - s.floor) * .2 : s.floor + .01; s.t += .064;
+  if (db > s.floor + 9) { if (!s.inEv) { s.inEv = true; s.evStart = s.t; s.frames = 0; s.low = 0; } s.frames++; s.low += low / total; s.quiet = 0; }
+  else if (s.inEv && ++s.quiet >= 3) { s.inEv = false; const dur = s.frames * .064, ratio = s.low / s.frames;
+    if (dur >= .3 && dur <= 3.5) { if (s.t - s.lastSnoring < 90 && s.lastEnd > 0 && s.evStart - s.lastEnd >= 10 && s.evStart - s.lastEnd <= 90) T.pauses++;
+      s.breaths.push(s.evStart); if (ratio >= .55 && dur <= 3) { s.onsets.push(s.evStart); s.ratios.push(ratio); } s.lastEnd = s.t; s.alerted = false; } }
+  while (s.onsets.length && s.t - s.onsets[0] > 40) { s.onsets.shift(); s.ratios.shift(); } while (s.breaths.length && s.t - s.breaths[0] > 60) s.breaths.shift();
+  let conf = 0; if (s.onsets.length >= 3) { const iv = s.onsets.slice(1).map((v, i) => v - s.onsets[i]), mean = iv.reduce((a, b) => a + b) / iv.length, cv = Math.sqrt(iv.reduce((a, v) => a + (v - mean) ** 2, 0) / iv.length) / mean;
+    conf = clamp(.6 + (s.ratios.reduce((a, b) => a + b) / s.ratios.length - .55) / .2 * .4, 0, 1) * (iv.filter(v => v >= 2 && v <= 8).length / iv.length) * (1 - clamp(cv - .3, 0, .6)) * Math.min(1, s.onsets.length / 4); }
+  T.conf = conf; const was = s.snoring; s.snoring = conf > .9; if (s.snoring) { s.lastSnoring = s.t; T.snoreSec += .064; if (!was) T.episodes++; }
+  const biv = s.breaths.slice(1).map((v, i) => v - s.breaths[i]).filter(v => v >= 2 && v <= 8).sort((a, b) => a - b); T.breaths = biv.length >= 3 ? 60 / biv[Math.floor(biv.length / 2)] : 0;
+  const gap = (s.t - s.lastSnoring < 90 && s.lastEnd > 0 && !s.inEv) ? s.t - s.lastEnd : 0; let alert = false; if (gap >= 12 && !s.alerted) { s.alerted = true; alert = true; }
+  if (S.set.snore !== "off" && !T.ringing && ((s.snoring && Date.now() - s.lastNudge > 90000) || alert)) { s.lvl = Date.now() - s.lastNudge < 300000 ? Math.min(3, s.lvl + 1) : 1; s.lastNudge = Date.now(); T.nudges++; nudge(s.lvl); }
+}
+/** Soft low buzz (iPhone browsers cannot vibrate), plus vibration where the browser allows it. */
+function nudge(lvl) { try { navigator.vibrate && navigator.vibrate([80, 220, 80, 220, 80]); } catch (e) {}
+  const c = A.ctx, o = c.createOscillator(), g = c.createGain(), t = c.currentTime; o.frequency.value = 170; g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(.06 * lvl, t + .25); g.gain.linearRampToValueAtTime(0, t + .6); o.connect(g); g.connect(c.destination); o.start(t); o.stop(t + .65); }
+function minuteTick() { T.act.push(T.moves); T.moves = 0; const at = T.alarmAt; if (!at || T.ringing) return; const now = Date.now();
+  if (now >= at) return ring("alarm"); if (now < at - S.set.win * 60000 || T.act.length < 30) return; const r = T.act.slice(-3); if (r[2] >= 2 || r[0] + r[1] + r[2] >= 4) ring("smart"); }
+function ring(why) { T.ringing = true; T.wokeBy = why; T.ringStart = Date.now(); const chime = () => { if (!T.ringing) return; const c = A.ctx, t = c.currentTime, vol = clamp(.03 + (Date.now() - T.ringStart) / 90000, 0, .5);
+    [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => { const o = c.createOscillator(), g = c.createGain(); o.frequency.value = f; g.gain.setValueAtTime(0, t + i * .55); g.gain.linearRampToValueAtTime(vol, t + i * .55 + .01); g.gain.exponentialRampToValueAtTime(.0005, t + i * .55 + 1.8); o.connect(g); g.connect(c.destination); o.start(t + i * .55); o.stop(t + i * .55 + 1.9); });
+    T.ringT = setTimeout(chime, 4000); }; chime(); paintNight(); }
+function stopTracking() { if (!T.on) return; T.on = false; T.ringing = false; clearTimeout(T.ringT); clearInterval(T.micInt); clearInterval(T.minInt); window.removeEventListener("devicemotion", onMotion);
+  try { T.stream && T.stream.getTracks().forEach(t => t.stop()); } catch (e) {} T.act.push(T.moves);
+  if (Date.now() - T.start >= 120000) { const epochs = stage(T.act); S.nights.push({ start: T.start, end: Date.now(), epochs, sol: sleepOnset(epochs), snoreMin: Math.floor(T.snoreSec / 60), pauses: T.pauses, nudges: T.nudges, br: T.breaths, wokeBy: T.wokeBy, motion: !!T.motion }); save(); go("night:" + (S.nights.length - 1)); }
+  else render(); $("#night").hidden = true; if (!A.playing) wakeLock(false); }
+function paintNight() { const n = $("#night"); if (T.ringing) { n.hidden = false; n.className = "alarm"; n.innerHTML = `<h1>Good morning</h1><p class="sub">${fmtClock(nowMin())}</p><button class="btn" data-a="awake" style="max-width:320px;margin-top:24px">I'm awake · stop alarm</button><button class="btn sec" data-a="snooze" style="max-width:320px">Snooze 9 minutes</button>`; }
+  else { n.className = ""; n.innerHTML = `<div class="big">${fmtClock(nowMin())}</div><p>Night screen · keeps the phone awake so tracking and the alarm keep working</p><p>Tap anywhere to return</p>`; } }
+
+/* ---------------- Closed-loop demo (iPhone browsers cannot reach Bluetooth headbands) ---------------- */
+const E = { on: false, arousal: .92, bands: [0, 0, 0, 0, 0], state: "", hot: 0, calm: 0, active: false, count: 0, trend: [] };
+function eegTick() { if (!E.on) return; const calming = A.playing && A.mix.b; E.arousal += ((calming ? .05 : .92) - E.arousal) / (calming ? 44 : 90); const a = E.arousal, n = () => 1 + (Math.random() - .5) * .25;
+  const raw = [.08 * n() + .3 * Math.max(0, .15 - a), (1 - a) ** 2 * n(), Math.max(0, 1 - Math.abs(a - .45) * 2) * .8 * n(), a * n(), a * .25 * n()], sum = raw.reduce((x, y) => x + y); E.bands = raw.map(v => v / sum);
+  const [d, th, al, be, ga] = E.bands, fast = be + ga; E.state = fast > .35 && fast > al + th ? "High beta" : d > .5 ? "Delta" : th >= al && th + d > fast ? "Theta" : al > fast ? "Alpha" : "Alert"; E.trend.push(fast); E.trend = E.trend.slice(-240);
+  if (E.state === "High beta") { E.hot += .5; E.calm = 0; } else if (E.state !== "Alert") { E.calm += .5; E.hot = 0; }
+  if (S.set.loop) { if (!E.active && E.hot >= 8) { E.active = true; E.count++; E.calm = 0; if (!A.playing) { A.track = D.tracks[0]; play(D.tracks[0]).then(() => { A.byLoop = true; setTimer(0); }); } else if (A.mix.b !== 1) setMix({ ...A.mix, b: 1 }, false); }
+    else if (E.active && E.calm >= 45) { E.active = false; E.hot = 0; if (A.byLoop) stop(8); } }
+  if (route === "bio") render(); }
+setInterval(eegTick, 500);
+
+/* ---------------- Views ---------------- */
+let route = "home", tab = "home", stack = [], ui = {};
+const art = (hue, cls = "art") => `<div class="${cls}" style="background:linear-gradient(135deg,hsl(${hue} 45% 32%),hsl(${(hue + 40) % 360} 55% 12%))"></div>`;
+const head = (title, sub, back = true) => `<div class="head">${back ? `<button class="back" data-a="back" aria-label="Back"><b>←</b>Back</button>` : ""}<div><h1>${esc(title)}</h1><p class="sub">${esc(sub)}</p></div></div>`;
+const stat = (label, value, color) => `<div class="stat"><b${color ? ` style="color:var(--${color})"` : ""}>${value}</b><span>${label}</span></div>`;
+const bar = (frac, mark, color) => `<div class="bar"><i style="width:${clamp(frac, 0, 1) * 100}%${color ? `;background:var(--${color})` : ""}"></i>${mark != null ? `<u style="left:${mark * 100}%"></u>` : ""}</div>`;
+const pills = (items, isOn, label, act) => `<div class="pills">${items.map(x => `<button class="pill${isOn(x) ? " on" : ""}" data-a="${act}:${x}">${esc(label(x))}</button>`).join("")}</div>`;
+const tog = (title, sub, on, key) => `<div class="tog"><div>${title}<p class="sub">${sub}</p></div><button class="sw${on ? " on" : ""}" role="switch" aria-checked="${on}" aria-label="${esc(title)}" data-a="set:${key}"></button></div>`;
+const stepper = (label, value, key, step) => `<div class="step"><span>${label}</span><button class="round" data-a="dec:${key}:${step}" aria-label="Less">−</button><b>${value}</b><button class="round" data-a="inc:${key}:${step}" aria-label="More">+</button></div>`;
+const trackRow = t => { const locked = t.kind === "DAY_MED" && !dayOk(); return `<button class="row" data-a="${locked ? "noop" : "play:" + t.id}">${art(t.hue)}<div><strong style="${locked ? "color:var(--muted)" : ""}">${esc(t.title)}</strong><p class="sub">${esc(t.sub)}</p></div><em>${locked ? "Daytime" : t.min ? t.min + " min" : "Play"}</em></button>`; };
+const byId = id => D.tracks.find(t => t.id === id);
+function liveHtml() { const m = A.mix; if (!m.b || !A.playing) return ""; return `<div class="stats">${stat(`Binaural beat · L 250 Hz / R ${(250 + A.beatHz).toFixed(1)} Hz`, A.beatHz.toFixed(1) + " Hz")}${stat(m.cs ? "Beat level under the sound bed (30:60 protocol)" : "Beat level vs bed (manual)", isNaN(A.ratio) ? "—" : A.ratio.toFixed(0) + " dB")}</div><p class="note">Binaural beats need headphones: each ear must hear its own tone.</p>`; }
+
+const V = {
+  home() { const sev = severity(), done = tasksDone(), h = new Date().getHours(), r = readiness();
+    return head(h < 5 ? "Rest well" : h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening", "Tonight's plan and your sleep worklist", false)
+      + `<div class="panel raised"><div style="display:flex;gap:12px;align-items:center"><div style="flex:1"><p class="sub">Sleep Readiness</p>
+        <p>Wind-down <b>${fmtClock(S.set.bed - S.set.lead)}</b></p><p>Bedtime <b>${fmtClock(S.set.bed)}</b></p><p>${S.set.alarm ? "Smart wake" : "Wake"} <b>${fmtClock(S.set.wake)}</b></p></div>
+        <div class="gauge"><svg viewBox="0 0 100 100" width="112" height="112"><path d="M21.7 78.3A40 40 0 1 1 78.3 78.3" fill="none" stroke="var(--line)" stroke-width="9" stroke-linecap="round"/><path d="M21.7 78.3A40 40 0 1 1 78.3 78.3" fill="none" stroke="var(--primary)" stroke-width="9" stroke-linecap="round" stroke-dasharray="${r * 1.885} 400"/></svg><b>${r}</b><span>ready</span></div></div>
+        <button class="btn" data-a="go:tonight">${T.on ? "Sleep session running · open" : "Start tonight's sleep session"}</button>
+        ${Date.now() < S.wdUntil ? `<button class="btn sec" data-a="go:winddown">Wind-down in progress · open routine</button>` : ""}</div>`
+      + (sev === 0 ? `<button class="panel" data-a="go:assess:psqi" style="text-align:left;color:inherit;font:inherit;cursor:pointer"><strong>Set your sleep baseline</strong><p class="sub">A 3-minute questionnaire tailors your stories, meditations and sounds to how you actually sleep.</p><p style="color:var(--soft);font-size:13px">Start the Sleep Quality Index →</p></button>` : "")
+      + `<h2>${sev === 3 ? "Picked for restless nights" : sev === 2 ? "Picked for your sleep profile" : "Recommended tonight"}</h2><div class="scroll">${D.rec[sev].map(id => { const t = byId(id); return `<button class="card" data-a="play:${id}">${art(t.hue)}<strong>${esc(t.title)}</strong><p class="sub">${D.kinds[t.kind]}</p></button>`; }).join("")}</div>`
+      + `<h2>Tonight's routine</h2><div class="stats"><button class="btn sec" data-a="go:checkin">Check-in</button><button class="btn sec" data-a="go:winddown">Wind-down</button><button class="btn sec" data-a="go:daylight">Daylight</button><button class="btn sec" data-a="go:bio">Biofeedback</button></div>`
+      + `<h2>Sleep worklist · ${done.size} of ${D.tasks.length}</h2><div class="panel">${D.tasks.map(([id, title, group]) => `<button class="row${done.has(id) ? " done" : ""}" data-a="task:${id}"><span class="dot"></span><div><span style="${done.has(id) ? "color:var(--muted)" : ""}">${esc(title)}</span><p class="sub">${group}${id === "daylight" ? ` · ${S.day[today()] || 0} of 80 min today` : id === "checkin" ? " · completes automatically" : ""}</p></div></button>`).join("")}</div>`; },
+
+  library() { const f = ui.filter || "", order = severity() >= 2 ? ["STORY", "SLEEP_MED", "ENTRAIN", "SOUNDSCAPE", "DAY_MED"] : Object.keys(D.kinds);
+    return head("Library", "Every sound is generated on your phone", false)
+      + `<div class="scroll"><button class="pill${!f ? " on" : ""}" data-a="filter:">All</button>${Object.keys(D.kinds).map(k => `<button class="pill${f === k ? " on" : ""}" data-a="filter:${k}">${D.kinds[k]}</button>`).join("")}</div>`
+      + `<button class="panel raised row" data-a="go:mixer"><div><strong>Sound mixing console</strong><p class="sub">10 faders · layers · binaural beats</p></div><em>Open</em></button>`
+      + order.filter(k => !f || f === k).map(k => `<h2>${D.kinds[k]}</h2>` + (k === "DAY_MED" ? `<p class="note">${dayOk() ? "Available now. Upright, alert practice builds attention during the day." : "Resting until morning. Alert, upright meditation raises pre-sleep attention and can delay sleep onset, so it is offered only in the daytime. Tonight, choose a Sleep Story or Sleep Meditation."}</p>` : "") + D.tracks.filter(t => t.kind === k).map(trackRow).join("")).join(""); },
+
+  player() { const t = A.track, left = A.timerEnd ? Math.ceil((A.timerEnd - Date.now()) / 60000) : 0;
+    return head(t ? t.title : "My mix", t ? t.sub : "Custom console mix")
+      + `<div style="position:relative"><div class="art" style="width:100%;height:220px;border-radius:26px;background:linear-gradient(135deg,hsl(${t ? t.hue : 270} 45% 32%),hsl(${((t ? t.hue : 270) + 40) % 360} 55% 12%))"></div><canvas id="bigWave" height="60" style="position:absolute;left:18px;right:18px;bottom:12px;width:calc(100% - 36px)"></canvas></div>`
+      + (t && t.script.length ? `<div class="panel"><p class="caption" id="caption">${esc(narr.caption || (narr.on ? "…" : "Press play to begin the narration"))}</p></div>` : "")
+      + `<button class="btn" data-a="toggle">${A.playing ? "Pause" : "Play"}</button><div id="live">${liveHtml()}</div>`
+      + (A.mix.r && A.rotation.length ? `<p class="note">Now drifting through: ${A.rotation.map(x => LABEL[x]).join(", ")} · changes every few minutes</p>` : "")
+      + `<h2>Sleep timer</h2>${pills([15, 30, 45, 60, 90, 0], m => m === 0 ? !A.timerEnd && A.playing : A.timerEnd && S.set.timer === m, m => m ? m + " min" : "Until stopped", "timer")}<p class="note">${!A.playing ? "Timer starts with playback." : left > 0 ? "Fades out gently in " + fmtDur(left) + "." : "Playing until you stop it."}</p>`
+      + `<button class="btn sec" data-a="go:mixer">Open mixing console</button><button class="btn sec" data-a="nightscreen">Dark night screen</button>`; },
+
+  mixer() { const m = A.mix, locked = m.cs && m.b;
+    return head("Mixing console", "Shape your own soundscape")
+      + `<div class="panel">${FADERS.map((l, i) => `<label class="fader" for="f${i}"><span>${l}</span><input type="range" id="f${i}" min="0" max="100" value="${Math.round(m.f[i] * 100)}" data-i="${i}" ${i === 1 && (locked || !m.b) ? "disabled" : ""}><span id="fv${i}">${i >= 7 ? ((m.f[i] - .5) * 24 >= 0 ? "+" : "") + Math.round((m.f[i] - .5) * 24) + " dB" : Math.round(m.f[i] * 100)}</span></label>`).join("")}</div>`
+      + `<button class="btn" data-a="toggle">${A.playing ? "Pause" : "Play this mix"}</button>`
+      + `<h2>Binaural beats</h2>${pills([0, 1, 2], b => m.b === b, b => ["Off", "Theta 6 Hz", "Delta sweep 0.5–4 Hz"][b], "beat")}`
+      + tog("Combined Stimuli 30:60 lock", "Holds the beat 30 dB below the sound bed to avoid listening fatigue", m.cs, "cs")
+      + `<h2>Nature layers</h2>` + tog("Randomized nature triggers", "Drift between rain, ocean, waterfall, forest and river", m.r, "rand")
+      + (m.r ? "" : pills(NATURE, n => m.n.includes(n), n => LABEL[n], "nat"))
+      + `<h2>Melodic base</h2>${pills(["none", "piano", "pad"], x => (m.m || "none") === x, x => x === "none" ? "None" : LABEL[x], "mel")}<button class="btn sec" data-a="resetmix">Reset console</button>`; },
+
+  checkin() { const c = ui.ci || (ui.ci = { v: 0, e: [], i: [], note: "" });
+    if (c.saved) { const pick = byId(c.v <= -2 ? "sm_bodyscan" : c.v < 0 ? "sm_478" : "st_river");
+      return head("State of mind", "Logged") + `<div class="panel raised"><strong>Logged. Thank you for checking in.</strong><p class="sub">${c.v < 0 ? "You named it. That alone lowers arousal. A sleep-specific practice can help you set it down for the night." : "A settled mind is a good start. Keep the evening slow and let sleep come to you."}</p></div><button class="btn" data-a="play:${pick.id}">Play “${esc(pick.title)}”</button><button class="btn sec" data-a="back">Done</button>`; }
+    const hue = 262 + (c.v + 3) * 12, r = 46 - (c.v < 0 ? -c.v * 9 : 0);
+    return head("State of mind", "Naming a feeling slows the heart and softens its grip")
+      + `<strong>How are you feeling right now?</strong><div style="display:flex;justify-content:center;padding:18px 0"><div style="width:150px;height:150px;border-radius:${r}% ${60 - r / 2}% ${r}% ${55 - r / 3}%;background:radial-gradient(circle at 40% 35%,hsl(${hue} 55% ${58 + c.v * 4}%),hsl(${hue} 45% 34%));box-shadow:0 0 60px hsl(${hue} 55% 45% / .45);transform:rotate(${c.v * 12}deg)"></div></div>
+        <p style="text-align:center;font:400 22px var(--display);color:var(--soft)">${D.valence[c.v + 3]}</p><input type="range" id="valence" min="-3" max="3" step="1" value="${c.v}" data-i="valence" aria-label="Feeling, from very unpleasant to very pleasant"><div style="display:flex;justify-content:space-between" class="sub"><span>Very Unpleasant</span><span>Very Pleasant</span></div>`
+      + `<h2>What best describes this feeling?</h2>${pills(D.emotions[c.v], x => c.e.includes(x), x => x, "emo")}<h2>What is having the biggest impact?</h2>${pills(D.impacts, x => c.i.includes(x), x => x, "imp")}`
+      + `<h2>Anything to set down for the night? (optional)</h2><textarea id="note" data-i="note" placeholder="Write it here so you don't have to carry it to bed">${esc(c.note)}</textarea><button class="btn" data-a="savemood">Save check-in</button>`; },
+
+  assessments() { return head("Assessments", "Clinical baselines and progress reports") + D.q.map(q => { const hist = S.assess.filter(a => a.type === q.id), last = hist[hist.length - 1], d = last ? last.score - hist[0].score : 0;
+      return `<div class="panel"><strong>${esc(q.title)}</strong><p class="sub">${esc(q.about)}</p>${last ? `<p><span class="big" style="font-size:30px;color:var(--soft)">${last.score}</span> / ${q.max} · ${band(q.id, last.score)}</p>${hist.length > 1 ? `<p class="sub" style="${d < 0 ? "color:var(--good)" : ""}">Progress: ${d < 0 ? "improved by " + -d : d > 0 ? "up by " + d : "unchanged"} since your first of ${hist.length} reports (lower is better)</p>` : ""}` : ""}<button class="btn${last ? " sec" : ""}" data-a="go:assess:${q.id}">${last ? "Retake" : "Take now"}</button></div>`; }).join("")
+      + `<p class="note">These are screening questionnaires for self-tracking, not a diagnosis. The PSQI structure and scoring follow Buysse et al. (1989); PHQ-9 and GAD-7 are public-domain instruments. Share results with a clinician if you are concerned.</p>`; },
+
+  assess(id) { const q = D.q.find(x => x.id === id), a = ui.as && ui.as.id === id ? ui.as : (ui.as = { id, i: 0, ans: q.qs.map(x => x.k === 0 ? -1 : x.d), score: -1 });
+    if (a.score >= 0) { const parts = id === "psqi" ? psqiParts(a.ans) : null;
+      return head(q.title, "Your result") + `<div class="panel raised"><p><span class="big" style="color:var(--soft)">${a.score}</span> / ${q.max}</p><strong>${band(id, a.score)}</strong>${bar(a.score / q.max)}</div>`
+        + (parts ? `<h2>Components (0 best – 3 worst)</h2><div class="panel">${PSQI_PARTS.map((n, k) => `<div class="step"><span>${n}</span><div style="width:90px;display:flex">${bar(parts[k] / 3, null, parts[k] >= 2 ? "warm" : null)}</div><span class="sub">${parts[k]}</span></div>`).join("")}</div><p class="note">${a.score <= 5 ? "Your sleep is in the healthy range. SomnaFlow will keep things light: entrainment and soundscapes first." : a.score <= 10 ? "Moderate disturbance. Your library now leads with Sleep Stories and sleep-specific meditations alongside theta entrainment." : "Severe disturbance. Sleep Stories and sleep meditations are now prioritised. Please also consider speaking with a doctor about your sleep."}</p>` : "")
+        + (id === "phq9" && a.ans[8] > 0 ? `<div class="panel raised"><strong>You are not alone</strong><p>You marked having thoughts of being better off dead or of hurting yourself. Please talk to someone you trust or a health professional today. If you might act on these thoughts, contact your local emergency number or a crisis line right now.</p></div>` : id !== "psqi" && a.score >= 10 ? `<p class="note">Scores of 10 or more are worth discussing with a doctor or therapist. Low mood and anxiety are closely tied to sleep, and both are treatable.</p>` : "")
+        + `<button class="btn" data-a="back">Done</button>`; }
+    const item = q.qs[a.i], v = a.ans[a.i];
+    return head(q.title, `Question ${a.i + 1} of ${q.qs.length}`) + bar((a.i + 1) / q.qs.length)
+      + (a.i === 0 || (id === "psqi" && a.i >= 4 && a.i <= 13) ? `<p class="sub">${id === "psqi" && a.i >= 4 ? "During the past month, how often have you had trouble sleeping…" : esc(q.intro)}</p>` : "")
+      + `<p style="font:600 19px/1.35 var(--body)">${esc(item.t)}</p>`
+      + (item.k === 0 ? item.o.map((o, k) => `<button class="opt${v === k ? " on" : ""}" data-a="ans:${k}"><span class="dot"></span>${esc(o)}</button>`).join("")
+        : `<div class="panel"><div class="step"><span>${item.k === 1 ? "Time" : item.k === 2 ? "Minutes" : "Hours of sleep"}</span><button class="round" data-a="ansd:-1" aria-label="Less">−</button><b>${item.k === 1 ? fmtClock(v) : item.k === 2 ? v + " min" : (v / 10).toFixed(1) + " h"}</b><button class="round" data-a="ansd:1" aria-label="More">+</button></div></div>`)
+      + `<div style="display:flex;gap:10px">${a.i > 0 ? `<button class="btn sec" data-a="ansprev">Previous</button>` : ""}<button class="btn" data-a="ansnext" ${v < 0 ? "disabled" : ""}>${a.i === q.qs.length - 1 ? "See result" : "Next"}</button></div>`; },
+
+  tonight() { if (!T.on) return head("Sleep session", "Track tonight and wake in light sleep")
+      + `<div class="panel"><strong>Before you start</strong>${["Plug the phone in and place it face-down on the mattress beside your pillow.", "On iPhone the session runs only while this page stays open, so SomnaFlow shows a black night screen and keeps the phone awake. Do not lock the phone.", "Movement is sensed through the mattress; breathing and snoring through the microphone. Sound is analysed live and never recorded.", "If snoring is detected with over 90% confidence, a soft low tone nudges you to shift position.", S.set.alarm ? `Smart alarm: between ${fmtClock(S.set.wake - S.set.win)} and ${fmtClock(S.set.wake)} you are woken at the first sign of light sleep.` : "The alarm is off. The session runs until you stop it."].map(x => `<p class="sub">•  ${x}</p>`).join("")}</div>
+        <button class="btn" data-a="track">Start sleep session</button>${A.playing ? "" : `<button class="btn sec" data-a="play:${D.rec[severity()][0]}">Play sleep audio first</button>`}<button class="btn sec" data-a="go:schedule">Alarm and tracking settings</button>`;
+    return head("Sleep session", "Tracking — sleep well") + `<div class="stats">${stat("Time in bed", fmtDur(Math.floor((Date.now() - T.start) / 60000)))}${stat(T.alarmAt ? "Wake window ends" : "Alarm", T.alarmAt ? fmtClock(S.set.wake) : "Off")}${stat("Movements this minute", T.motion ? T.moves : "—")}${stat("Breaths per minute", T.breaths ? T.breaths.toFixed(0) : "—")}</div>`
+      + (!T.motion ? `<p class="note" style="color:var(--warm)">Motion access was not granted here, so sleep stages and the smart wake cannot be estimated. The alarm still rings at ${fmtClock(S.set.wake)}.</p>` : "")
+      + `<h2>Snore monitor</h2><div class="panel">${!T.mic ? `<p style="color:var(--warm)">Microphone not available here. Movement tracking and the alarm still work.</p>` : A.playing ? `<p class="sub">Listening starts when your sleep audio fades out, so the app does not mistake its own sounds for breathing.</p>` : `<p>Snore confidence ${Math.round(T.conf * 100)}% · response above 90%</p>${bar(T.conf, .9, T.conf > .9 ? "warm" : null)}<p class="sub">Room level</p>${bar((T.level + 100) / 70)}`}
+        <div class="stats">${stat("Snoring", Math.floor(T.snoreSec / 60) + " min")}${stat("Breathing pauses", T.pauses)}${stat("Gentle nudges", T.nudges)}</div></div>
+        <button class="btn" data-a="nightscreen">Go to the dark night screen</button><button class="btn sec" data-a="awake">I'm awake · end session</button>`; },
+
+  night(i) { const n = S.nights[+i]; if (!n) return head("Night report", "") + `<p class="sub">No report found.</p>`; const as = asleepMin(n), d = new Date(n.start);
+    const awk = (n.epochs.slice(n.sol).match(/[LD]W/g) || []).length;
+    return head("Night report", d.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" }) + " · " + fmtClock(d.getHours() * 60 + d.getMinutes()))
+      + `<div class="stats">${stat("Fell asleep in", n.sol + " min", "soft")}${stat("Total sleep", fmtDur(as))}${stat("Efficiency", Math.round(as * 100 / Math.max(1, n.epochs.length)) + "%")}</div>
+        <h2>Sleep stages (estimated from movement)</h2><div class="panel"><canvas id="hyp" height="110" data-e="${n.epochs}"></canvas><div style="display:flex;gap:14px" class="sub"><span style="color:var(--warm)">■ Awake</span><span style="color:var(--primary)">■ Light</span><span style="color:var(--deep)">■ Deep</span></div></div>
+        <div class="stats">${stat("Deep sleep", fmtDur([...n.epochs].filter(c => c === "D").length))}${stat("Awakenings", awk)}${stat("Woken by", n.wokeBy === "smart" ? "Smart" : n.wokeBy === "alarm" ? "Alarm" : "You")}</div>
+        <h2>Breathing</h2><div class="stats">${stat("Snoring", n.snoreMin + " min")}${stat("Pauses >10 s", n.pauses)}${stat("Gentle nudges", n.nudges)}</div>
+        <p class="note">${n.motion === false ? "Motion access was off for this session, so stages could not be estimated. " : ""}Stages are estimated from mattress movement, which cannot separate REM from light sleep. Frequent breathing pauses or loud nightly snoring deserve a conversation with a doctor. This app is not a medical device and cannot diagnose sleep apnea.</p>`; },
+
+  bio() { const names = [["Delta", "0.5–4 Hz"], ["Theta", "4–8 Hz"], ["Alpha", "8–13 Hz"], ["Beta", "13–30 Hz"], ["Gamma", "30–45 Hz"]];
+    return head("Biofeedback", "Brain signals, closing the loop")
+      + `<div class="panel">${!E.on ? `<strong>Closed-loop demo</strong><p class="sub">iPhone browsers cannot connect to Bluetooth headbands or heart-rate straps, so this version runs a simulated EEG signal. It starts in a racing-mind beta state; watch the theta audio start by itself and the signal settle.</p><button class="btn sec" data-a="eeg">Run simulated signal</button>`
+        : `<div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font:600 22px var(--body);color:var(--${E.state === "High beta" ? "warm" : "soft"})">${E.state}</span><span class="sub">Simulated signal</span></div>${names.map(([n, r], i) => `<div class="step"><span style="flex:none;width:92px">${n}<br><span class="sub" style="font-size:11px">${r}</span></span>${bar(E.bands[i], null, i >= 3 ? "warm" : i === 1 ? "soft" : null)}<span class="sub" style="width:38px;text-align:right">${Math.round(E.bands[i] * 100)}%</span></div>`).join("")}<p class="sub">Arousal trend (beta + gamma share)</p><canvas id="trend" height="56"></canvas><button class="btn sec" data-a="eeg">Stop simulated signal</button>`}</div>`
+      + `<div class="panel${E.active ? " raised" : ""}">${tog("Closed-loop calming", "When sustained high beta is detected, 6 Hz theta beats start automatically and fade once alpha/theta take over", S.set.loop, "loop")}<p class="sub" style="${E.active ? "color:var(--warm)" : ""}">${E.active ? "Intervening now · theta entrainment playing" : E.count ? `Standing by · ${E.count} automatic intervention${E.count > 1 ? "s" : ""} this session` : "Standing by"}</p></div>
+        <p class="note">Real EEG headbands, heart-rate straps, the camera pulse sensor and Health Connect sync are in the Android app. Wellness feedback only, not a medical device.</p>`; },
+
+  winddown() { const on = Date.now() < S.wdUntil;
+    return head("Wind-down", `Plan to begin at ${fmtClock(S.set.bed - S.set.lead)}`)
+      + `<div class="panel raised"><strong>${on ? "Wind-down is on" : "Wind-down is off"}</strong><p class="sub">${on ? "The screen is dimmed to a warm low contrast until morning." : "Start it when your evening slows down."}</p><button class="btn${on ? " sec" : ""}" data-a="wd">${on ? "End wind-down" : "Start wind-down now"}</button></div>
+        <h2>Tonight's steps</h2><button class="btn sec" data-a="go:checkin">1 · State-of-mind check-in</button><button class="btn sec" data-a="go:stretch">2 · Guided stretches (5 min)</button><button class="btn sec" data-a="play:${D.rec[severity()][0]}">3 · Play tonight's sleep audio</button><button class="btn sec" data-a="go:tonight">4 · Start sleep session</button>
+        <h2>Settings</h2><div class="panel">${stepper("Lead time before bed", S.set.lead + " min", "lead", 5)}${tog("Dim the display", "Adds a warm dark veil over SomnaFlow during wind-down", S.set.dim, "dim")}</div>
+        <p class="note">A web page cannot switch on your iPhone's Do Not Disturb or start by itself. Set a Sleep Focus schedule in iPhone Settings → Focus → Sleep for ${fmtClock(S.set.bed - S.set.lead)} so notifications go quiet automatically.</p>`; },
+
+  stretch() { const st = ui.st || (ui.st = { i: 0, left: D.stretches[0][1], run: false }); if (st.i >= D.stretches.length) return head("Guided stretches", "Complete") + `<div class="panel raised"><strong>Routine complete</strong><p class="sub">Your body is ready for bed. This is ticked off on tonight's worklist.</p></div><button class="btn" data-a="back">Done</button>`;
+    const [name, secs, how] = D.stretches[st.i];
+    return head("Guided stretches", "Six slow stretches to release the day") + `<p class="sub">Stretch ${st.i + 1} of ${D.stretches.length}</p><h1>${name}</h1><div style="text-align:center;padding:14px 0"><span class="big" id="stLeft">${st.left}</span><p class="sub">seconds</p></div>${bar(1 - st.left / secs)}<div class="panel"><p style="text-align:center">${how}</p></div><button class="btn" data-a="strun">${st.run ? "Pause" : st.left < secs ? "Resume" : "Begin"}</button><button class="btn sec" data-a="stskip">Skip this stretch</button>`; },
+
+  daylight() { const min = S.day[today()] || 0, o = ui.out;
+    return head("Daylight", "Target 80–120 minutes outdoors each day")
+      + `<div style="text-align:center;padding:10px 0"><span class="big">${min}</span><p class="sub">minutes today</p></div>${bar(min / 80, null, "warm")}<p class="sub" style="text-align:center">${min >= 120 ? "Excellent. Your body clock has a strong daytime signal." : min >= 80 ? "Target reached. Daylight is anchoring tonight's melatonin release." : (80 - min) + " more minutes of outdoor light will strengthen tonight's sleep signal. Morning light counts most."}</p>
+        <div class="panel"><button class="btn${o ? "" : " sec"}" data-a="outside">${o ? "Stop outdoor timer · " + Math.floor((Date.now() - o) / 60000) + " min" : "I'm outside · start timer"}</button>${stepper("Log by hand", min + " min", "day", 10)}<p class="note">iPhone browsers have no light sensor, so daylight is timed or logged by hand here.</p></div>
+        <h2>Last 7 days</h2><div class="panel"><canvas id="bars" height="110" data-v="${[6, 5, 4, 3, 2, 1, 0].map(i => S.day[dstr(daysAgo(i))] || 0).join(",")}" data-t="80" data-m="160" data-l="${[6, 5, 4, 3, 2, 1, 0].map(i => "SMTWTFS"[daysAgo(i).getDay()]).join(",")}" data-c="warm"></canvas></div>`; },
+
+  schedule() { const win = (S.set.wake - S.set.bed + 1440) % 1440;
+    return head("Schedule & alarm", "Your sleep window drives the plan")
+      + `<div class="panel">${stepper("Bedtime", fmtClock(S.set.bed), "bed", 15)}${stepper("Wake-up time", fmtClock(S.set.wake), "wake", 15)}${stepper("Sleep need", S.set.need.toFixed(1) + " h", "need", .5)}<p class="note">Time in bed: ${fmtDur(win)}.${win < S.set.need * 60 ? " That is shorter than your sleep need, so sleep debt will build." : ""}</p></div>
+        <h2>Wake-up alarm</h2><div class="panel">${tog("Alarm during sleep sessions", "Gentle chimes that rise slowly at " + fmtClock(S.set.wake), S.set.alarm, "alarm")}${stepper("Smart wake window", S.set.win + " min", "win", 5)}<p class="note">The alarm only works while a sleep session is running with this page open. Keep your iPhone Clock alarm as a backup.</p></div>
+        <h2>Snore response</h2>${pills(["buzz", "off"], x => S.set.snore === x, x => x === "buzz" ? "Soft low tone" : "Monitor only", "snore")}
+        <h2>Default sleep timer</h2>${pills([15, 30, 45, 60, 90, 0], m => S.set.timer === m, m => m ? m + " min" : "Until stopped", "deftimer")}
+        <h2>Log last night by hand</h2><div class="panel">${stepper("Hours slept", (S.sleep[today()] ?? 7.5).toFixed(1) + " h", "slept", .5)}<p class="note">${S.sleep[today()] == null ? "Not logged yet. Used for sleep debt when no tracked night exists." : "Saved for today."}</p></div>`; },
+
+  profile() { const l = last14(), logged = l.filter(x => x != null), dbt = debt(), cur = energyCurve(logged.length ? logged[logged.length - 1] : S.set.need, dbt), nm = nowMin();
+    const awake = cur.map((v, i) => i).filter(i => { const s = (i - S.set.wake / 15 + 96) % 96; return s > 8 && s < (S.set.bed - S.set.wake + 1440) % 1440 / 15 - 8; });
+    const peak = awake.length ? awake.reduce((a, b) => cur[b] > cur[a] ? b : a) : null, dips = awake.filter(i => i >= 48 && i <= 72), dip = dips.length ? dips.reduce((a, b) => cur[b] < cur[a] ? b : a) : null;
+    return head("Profile", "Streaks, sleep debt and your energy", false)
+      + `<div class="stats">${stat("Day streak", streak(), "warm")}${stat("Sleep debt (14 days)", dbt.toFixed(1) + " h", dbt > 5 ? "warm" : "soft")}${stat("Avg sleep", logged.length ? (logged.reduce((a, b) => a + b) / logged.length).toFixed(1) + " h" : "—")}</div>
+        <h2>Sleep · last 14 nights</h2><div class="panel"><canvas id="bars" height="120" data-v="${l.map(x => x == null ? "" : x.toFixed(2)).join(",")}" data-t="${S.set.need}" data-m="11" data-l="${l.map((_, i) => daysAgo(13 - i).getDate()).join(",")}"></canvas><p class="note">${!logged.length ? `No nights yet. Run a sleep session or log hours by hand in Schedule. The dashed line is your ${S.set.need.toFixed(1)} h sleep need.` : dbt < 1 ? "You are meeting your sleep need. No meaningful debt." : `You owe about ${dbt.toFixed(1)} hours. An extra 30–60 minutes a night clears debt more gently than one long lie-in.`}</p></div>
+        <h2>Today's predicted energy</h2><div class="panel"><canvas id="energy" height="120" data-v="${cur.map(v => v.toFixed(0)).join(",")}" data-n="${nm}"></canvas><div style="display:flex;justify-content:space-between" class="sub"><span>12 AM</span><span>6 AM</span><span>12 PM</span><span>6 PM</span><span>12 AM</span></div><p class="note">Now: ${Math.round(cur[clamp(Math.floor(nm / 15), 0, 95)])}/100.${peak != null ? ` Peak focus near ${fmtClock(peak * 15)}.` : ""}${dip != null ? ` Expect a sluggish dip around ${fmtClock(dip * 15)}.` : ""}${dbt > 3 ? " Sleep debt is lowering the whole curve." : ""}</p></div>`
+      + (S.nights.length ? `<h2>Recent nights</h2><div class="panel">${S.nights.map((n, i) => [n, i]).slice(-7).reverse().map(([n, i]) => `<button class="row" data-a="go:night:${i}"><div>${new Date(n.end).toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" })}<p class="sub">Asleep in ${n.sol} min · snoring ${n.snoreMin} min</p></div><em>${fmtDur(asleepMin(n))}</em></button>`).join("")}</div>` : "")
+      + `<h2>More</h2><div class="panel">${[["assessments", "Assessments", "PSQI, PHQ-9 and GAD-7 baselines and progress"], ["bio", "Biofeedback", "Closed-loop calming demo"], ["schedule", "Schedule & alarm", "Bedtime, wake time, smart alarm, sleep log"], ["winddown", "Wind-down", "Evening routine and dimming"], ["about", "About & the science", "How each feature works, and its limits"]].map(([r, t, s]) => `<button class="row" data-a="go:${r}"><div>${t}<p class="sub">${s}</p></div><em>›</em></button>`).join("")}</div>`; },
+
+  about() { return head("About SomnaFlow", "Web edition · everything stays in this browser") + [
+      ["Theta induction", "Left ear 250 Hz, right ear 256 Hz: the brain perceives the 6 Hz difference, in the theta band of the wake-to-sleep transition. The beat is held 30 dB beneath a nature sound bed because beats on their own are fatiguing. Use headphones."],
+      ["Spindle accelerator", "A binaural beat that glides between 0.5 and 4 Hz over steady pink noise, aimed at the slow rhythms that accompany stable stage-2 sleep."],
+      ["Stories, not daytime meditation, at night", "Sleep Stories and lying-down sleep meditations interrupt rumination without demanding focus. Upright, alert meditation is kept for the daytime because it can raise pre-sleep arousal."],
+      ["What the web edition cannot do", "Browsers on iPhone cannot reach Bluetooth wearables, Apple Health, Do Not Disturb, the light sensor or vibration, and cannot run in the background. Those features are in the Android app; here they are replaced by the simulated closed-loop demo, hand logging and the night screen."],
+      ["Privacy", "No account, no ads, no server. Microphone sound is analysed live and never stored. Your data is kept only in this browser; clearing website data erases it."]
+    ].map(([h, b]) => `<div class="panel"><strong>${h}</strong><p class="sub">${b}</p></div>`).join("")
+      + `<p class="note">SomnaFlow is a wellness tool, not a medical device. It does not diagnose or treat insomnia, sleep apnea, depression or anxiety. Do not use binaural beats if you have epilepsy or a seizure disorder without medical advice.</p>`; }
+};
+
+/* ---------------- Rendering, drawing, navigation ---------------- */
+function css(v) { return getComputedStyle(document.documentElement).getPropertyValue("--" + v).trim(); }
+function fit(c) { const r = devicePixelRatio || 1, w = c.clientWidth, h = +c.getAttribute("height"); c.width = w * r; c.height = h * r; c.style.height = h + "px"; const x = c.getContext("2d"); x.setTransform(r, 0, 0, r, 0, 0); return [x, w, h]; }
+function draw() {
+  const b = $("#bars"); if (b) { const [x, w, h] = fit(b), vals = b.dataset.v.split(","), t = +b.dataset.t, mx = +b.dataset.m, labels = b.dataset.l.split(","), bw = w / vals.length, H = h - 16;
+    vals.forEach((s, i) => { x.fillStyle = s === "" ? css("raised") : +s >= t ? css(b.dataset.c || "primary") : css("deep"); const bh = s === "" ? 4 : Math.max(3, H * clamp(+s / mx, 0, 1)); x.beginPath(); x.roundRect(i * bw + bw * .22, H - bh, bw * .56, bh, 4); x.fill();
+      x.fillStyle = css("muted"); x.font = "10px sans-serif"; x.textAlign = "center"; x.fillText(labels[i], i * bw + bw / 2, h - 3); });
+    x.strokeStyle = css("soft"); x.setLineDash([5, 5]); x.beginPath(); const y = H * (1 - t / mx); x.moveTo(0, y); x.lineTo(w, y); x.stroke(); }
+  const e = $("#energy"); if (e) { const [x, w, h] = fit(e), v = e.dataset.v.split(",").map(Number), px = i => w * i / 95, py = y => h * (1 - y / 100);
+    x.beginPath(); x.moveTo(0, h); v.forEach((y, i) => x.lineTo(px(i), py(y))); x.lineTo(w, h); const g = x.createLinearGradient(0, 0, 0, h); g.addColorStop(0, "rgba(155,130,243,.35)"); g.addColorStop(1, "rgba(155,130,243,0)"); x.fillStyle = g; x.fill();
+    x.beginPath(); v.forEach((y, i) => i ? x.lineTo(px(i), py(y)) : x.moveTo(0, py(y))); x.strokeStyle = css("soft"); x.lineWidth = 2; x.stroke();
+    const n = +e.dataset.n, nx = w * n / 1440; x.strokeStyle = css("warm"); x.globalAlpha = .5; x.beginPath(); x.moveTo(nx, 0); x.lineTo(nx, h); x.stroke(); x.globalAlpha = 1; x.fillStyle = css("warm"); x.beginPath(); x.arc(nx, py(v[clamp(Math.floor(n / 15), 0, 95)]), 4, 0, 7); x.fill(); }
+  const hy = $("#hyp"); if (hy) { const [x, w, h] = fit(hy), ep = hy.dataset.e, bw = w / ep.length, rh = h / 3; [...ep].forEach((c, i) => { x.fillStyle = css(c === "W" ? "warm" : c === "L" ? "primary" : "deep"); x.fillRect(i * bw, (c === "W" ? 0 : c === "L" ? 1 : 2) * rh + 2, bw + .6, rh - 4); }); }
+  const tr = $("#trend"); if (tr && E.trend.length > 1) { const [x, w, h] = fit(tr); x.strokeStyle = css("warm"); x.lineWidth = 2; x.beginPath(); E.trend.forEach((v, i) => { const X = w * i / (E.trend.length - 1), Y = h * (1 - v); i ? x.lineTo(X, Y) : x.moveTo(X, Y); }); x.stroke(); }
+}
+function wave() { for (const id of ["#miniWave", "#bigWave"]) { const c = $(id); if (!c || !c.clientWidth) continue; const [x, w, h] = fit(c), bars = id === "#bigWave" ? 36 : 30, bw = w / (bars * 1.6), t = performance.now() / 1000, lv = A.playing ? clamp(A.level * 5, .15, 1) : 0;
+    x.fillStyle = css("soft"); x.globalAlpha = A.playing ? .9 : .35; for (let i = 0; i < bars; i++) { const wob = .5 + .5 * Math.sin(t * (1.1 + (i % 5) * .23) + i * .9), bh = (A.playing ? .18 + .82 * wob * lv : .12) * h; x.beginPath(); x.roundRect(i * bw * 1.6 + bw * .3, (h - bh) / 2, bw, bh, bw / 2); x.fill(); } }
+  requestAnimationFrame(wave); }
+function paintMini() { const show = (A.playing || A.track || A.ctx) && route !== "player"; $("#mini").hidden = !show; const t = A.track, hue = t ? t.hue : 270;
+  $("#miniArt").style.background = `linear-gradient(135deg,hsl(${hue} 45% 32%),hsl(${(hue + 40) % 360} 55% 12%))`; $("#miniTitle").textContent = A.preparing ? "Preparing sound…" : t ? t.title : "My mix";
+  $("#miniBtn").innerHTML = `<b>${A.playing ? "❚❚" : "▶"}</b>${A.playing ? "Pause" : "Play"}`; }
+function render() { const [name, arg] = route.split(":"); $("#app").innerHTML = (V[name] || V.home)(arg);
+  document.querySelectorAll(".tab").forEach((b, i) => b.classList.toggle("on", !stack.length && ["home", "library", "profile"][i] === tab));
+  $("#veil").hidden = !(Date.now() < S.wdUntil && S.set.dim); paintMini(); draw(); }
+function go(r) { if (route !== r) { stack.push(route); route = r; } render(); scrollTo(0, 0); }
+function back() { route = stack.pop() || tab; render(); }
+
+const setKeys = { cs: () => setMix({ ...A.mix, cs: !A.mix.cs }), rand: () => { A.rotation = []; setMix({ ...A.mix, r: !A.mix.r }); }, loop: () => S.set.loop = !S.set.loop, dim: () => S.set.dim = !S.set.dim, alarm: () => S.set.alarm = !S.set.alarm };
+function bump(key, dir, step) { step = +step * dir; const s = S.set;
+  if (key === "bed" || key === "wake") s[key] = (s[key] + step + 1440) % 1440; else if (key === "need") s.need = clamp(s.need + step, 6, 10); else if (key === "lead") s.lead = clamp(s.lead + step, 30, 60); else if (key === "win") s.win = clamp(s.win + step, 10, 45);
+  else if (key === "day") S.day[today()] = clamp((S.day[today()] || 0) + step, 0, 600); else if (key === "slept") S.sleep[today()] = clamp((S.sleep[today()] ?? 7.5) + step, 0, 14); }
+const toggleIn = (arr, x) => arr.includes(x) ? arr.filter(y => y !== x) : [...arr, x];
+const ACT = {
+  tab: t => { stack = []; tab = route = t; render(); scrollTo(0, 0); }, go: (...p) => go(p.join(":")), back, noop() {},
+  play: id => { play(byId(id)); if (route !== "player") go("player"); else render(); }, toggle: () => { toggle(); render(); },
+  filter: k => { ui.filter = k; render(); }, timer: m => { S.set.timer = +m; save(); setTimer(+m); render(); }, deftimer: m => { S.set.timer = +m; save(); render(); },
+  beat: b => { setMix({ ...A.mix, b: +b }); render(); }, nat: n => { setMix({ ...A.mix, n: toggleIn(A.mix.n, n) }); render(); }, mel: m => { setMix({ ...A.mix, m: m === "none" ? "" : m }); render(); },
+  resetmix: () => { setMix({ f: [.8, .5, .75, .6, 0, 0, 0, .5, .5, .5], n: ["rain"], m: "", b: 0, cs: true, r: false }); render(); },
+  set: k => { setKeys[k](); save(); render(); }, inc: (k, s) => { bump(k, 1, s); save(); render(); }, dec: (k, s) => { bump(k, -1, s); save(); render(); }, snore: x => { S.set.snore = x; save(); render(); },
+  task: id => { if (id === "daylight" || id === "checkin") return go(id); const d = today(), cur = S.tasks[d] || []; if (id === "stretch" && !cur.includes(id)) return go("stretch"); S.tasks[d] = toggleIn(cur, id); save(); render(); },
+  emo: x => { ui.ci.e = toggleIn(ui.ci.e, x); render(); }, imp: x => { ui.ci.i = toggleIn(ui.ci.i, x); render(); },
+  savemood: () => { const c = ui.ci; S.moods.push({ t: Date.now(), v: c.v, e: c.e, i: c.i, note: c.note }); save(); c.saved = true; render(); },
+  ans: k => { ui.as.ans[ui.as.i] = +k; render(); }, ansd: d => { const a = ui.as, q = D.q.find(x => x.id === a.id).qs[a.i]; a.ans[a.i] = q.k === 1 ? (a.ans[a.i] + d * 15 + 1440) % 1440 : clamp(a.ans[a.i] + d * 5, 0, q.k === 2 ? 240 : 140); render(); },
+  ansprev: () => { ui.as.i--; render(); }, ansnext: () => { const a = ui.as, q = D.q.find(x => x.id === a.id); if (a.i < q.qs.length - 1) a.i++; else { a.score = score(a.id, a.ans); S.assess.push({ t: Date.now(), type: a.id, score: a.score }); save(); } render(); scrollTo(0, 0); },
+  track: () => startTracking(), awake: () => { stopTracking(); }, snooze: () => { T.ringing = false; clearTimeout(T.ringT); T.alarmAt = Date.now() + 9 * 60000; paintNight(); },
+  nightscreen: () => { wakeLock(true); paintNight(); $("#night").hidden = false; },
+  eeg: () => { E.on = !E.on; if (E.on) Object.assign(E, { arousal: .92, hot: 0, calm: 0, active: false, trend: [] }); render(); },
+  wd: () => { S.wdUntil = Date.now() < S.wdUntil ? 0 : nextAt(S.set.wake); save(); render(); },
+  strun: () => { ui.st.run = !ui.st.run; if (ui.st.run) { try { speechSynthesis.cancel(); } catch (e) {} speak(D.stretches[ui.st.i][0] + ". " + D.stretches[ui.st.i][2]); } render(); },
+  stskip: () => { stNext(); render(); },
+  outside: () => { if (ui.out) { bump("day", 1, Math.floor((Date.now() - ui.out) / 60000)); ui.out = 0; save(); } else ui.out = Date.now(); render(); }
+};
+function stNext() { const st = ui.st; st.i++; if (st.i >= D.stretches.length) { st.run = false; const d = today(); S.tasks[d] = [...new Set([...(S.tasks[d] || []), "stretch"])]; save(); } else { st.left = D.stretches[st.i][1]; if (st.run) speak(D.stretches[st.i][0] + ". " + D.stretches[st.i][2]); } }
+setInterval(() => { const st = ui.st; if (st && st.run && route === "stretch") { if (--st.left <= 0) stNext(); render(); } if (route === "tonight" && T.on) render(); if (route === "daylight" && ui.out) render(); if (!$("#night").hidden) paintNight(); }, 1000);
+
+document.addEventListener("click", e => { const n = $("#night"); if (!n.hidden && !T.ringing && n.contains(e.target)) { n.hidden = true; return; }
+  const el = e.target.closest("[data-a]"); if (!el || el.disabled) return; const [a, ...p] = el.dataset.a.split(":"); if (a === "toggle") e.stopPropagation(); ACT[a] && ACT[a](...p); });
+document.addEventListener("input", e => { const i = e.target.dataset.i; if (i == null) return;
+  if (i === "valence") { ui.ci.v = +e.target.value; ui.ci.e = []; render(); const el = $("#valence"); el && el.focus(); }
+  else if (i === "note") ui.ci.note = e.target.value.slice(0, 400);
+  else { const f = A.mix.f.slice(); f[+i] = e.target.value / 100; setMix({ ...A.mix, f }); $("#fv" + i).textContent = +i >= 7 ? ((f[i] - .5) * 24 >= 0 ? "+" : "") + Math.round((f[i] - .5) * 24) + " dB" : Math.round(f[i] * 100); } });
+if (!CanvasRenderingContext2D.prototype.roundRect) CanvasRenderingContext2D.prototype.roundRect = function (x, y, w, h) { this.rect(x, y, w, h); };
+try { if ("serviceWorker" in navigator && location.protocol === "https:" && document.querySelector('link[rel="manifest"]')) navigator.serviceWorker.register("sw.js").catch(() => {}); } catch (e) {}
+render(); requestAnimationFrame(wave);
+</script>

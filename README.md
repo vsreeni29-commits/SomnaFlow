@@ -11,6 +11,14 @@ every sound is synthesized on the phone and all data stays on the phone.
 
 Every push builds a fresh APK through GitHub Actions (`.github/workflows/build.yml`).
 
+## iPhone (web edition)
+
+`web/` holds a browser version that runs in Safari and can be added to the Home Screen. It has the sound engine,
+stories, check-ins, questionnaires, sleep debt, energy curve and a night session. iPhone browsers cannot reach
+Bluetooth wearables, Apple Health, Do Not Disturb, the light sensor or vibration, and cannot run in the background,
+so those parts exist only in the Android app. To host it free: merge to `main`, then Settings -> Pages -> Source:
+"GitHub Actions"; the page appears at `https://<user>.github.io/SomnaFlow/`. Build locally with `python3 web/build.py`.
+
 ## What is inside
 
 | Module | Feature | Where in the code |
